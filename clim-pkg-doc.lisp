@@ -29,6 +29,7 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
 IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
+;;;----------------------------------------------------------------
 |# 
 
 (in-package #:clim-pkg-doc)
@@ -115,9 +116,9 @@ APROPOS:
         (t (mapcar (lambda (x) (cons (car x) (mktree (cdr x)))) (symbols p)))))
 
 ; 2) gui ------------------------------- nodes should not be sensible <-----
-(define-application-frame pkg-doc (cw::tree)
+(define-application-frame pkg-doc (cw:tree)
  ((info :accessor info :initform ""))
-  (:command-table (pkg-doc :inherit-from (cw::tree)))
+  (:command-table (pkg-doc :inherit-from (cw:tree)))
   (:panes 
    (tree :application :display-function 'cw:display-tree :incremental-redisplay t :end-of-line-action :allow :end-of-page-action :allow)
    (info :application :display-function 'disp-info :incremental-redisplay t))
@@ -130,24 +131,9 @@ APROPOS:
     (dolist (what manifest::*categories*)
       (when (manifest::is sym what) (princ (manifest::docs-for sym what) p)))))
 
-(defmethod inf :around ((n pkg-doc))
-  (unless (slot-boundp n 'inf)
-      (setf (inf n) 
-            (mapcar (lambda (x) 
-                      (if (gethash x cw::*nodes*) 
-                        (make-instance 'pkg-doc :sup x :info x)
-                        x))
-                    (gethash (sup n) cw::*nodes*))))
-  (call-next-method))
-
-(defun pkg-doc-view (group ptype)
-  (let ((f (make-application-frame 'pkg-doc :left 0 :top 0 :right 800 :bottom 400)))
-    (setf (cw::group f) group (cw::ptype f) ptype)
-    (run-frame-top-level f)))
-
 (defun tview (tree key)
-  (cw::t2h tree)
-  (pkg-doc-view (make-instance 'cw::node :sup key :disp-inf t) 'symbol))
+  (cw:t2h tree)
+  (cw:tree-view (make-instance 'cw::node :sup key :disp-inf t) 'symbol 'pkg-doc :right 800))
 
 ;;; main --------------------------------------
 (defun pkg-doc (&optional (pkg :clim)) (tview (list (cons pkg (symbol-tree pkg))) pkg))
@@ -158,15 +144,23 @@ APROPOS:
   (setf (info *application-frame*) item))
 
 ;;; menu-commands --------------------------------------
+#|
 ;creates a separtate window for every new package
 (define-pkg-doc-command (packages :menu t) ()   ; loaded packages  -- ev mouse over info
   (let ((pkg (menu-choose pkg-list)))
     (tview (list (cons pkg (symbol-tree pkg))) pkg)))
+|#
+(define-pkg-doc-command (packages :menu t) ()   ; loaded packages  -- ev mouse over info
+  (let ((pkg (menu-choose pkg-list)))
+    (cw:t2h (list (cons pkg (symbol-tree pkg))))
+    (with-application-frame (f) (setf (cw::group f) (make-instance 'cw::node :sup pkg :disp-inf t)) (redisplay-frame-panes f))))
 
 (define-pkg-doc-command (quicklisp :menu t) ()  ; available quicklisp packages
-  (let ((pkg (menu-choose ql-packages :n-columns 4)))
-    (ql:quickload (alexandria:format-symbol t "~:@(~a~)"pkg))))
+  (let ((pkg (alexandria:format-symbol t "~:@(~a~)" (menu-choose ql-packages :n-columns 4))))
+    (ql:quickload pkg)
+    (cons :common-lisp (sort (cons pkg (cdr pkg-list)) #'string<))))
 
+;ev include nicknames a: with repl-utilities:package-apropos ?
 (define-pkg-doc-command (com-apropos :menu t) ()
   (setf (info *application-frame*) (apropos (accept 'string) (accept 'symbol :default nil))))
 
@@ -179,6 +173,7 @@ APROPOS:
 (define-pkg-doc-command (readme :menu t) ()  ;pkg Readme file
   (setf (info *application-frame*) (princ (manifest::readme-text (cw::node-name (cw::group *application-frame*))) *standard-input*)))
 
+; not yet clear
 (define-pkg-doc-command (symboltypes :menu t) ()
   (setf *symbol-type* (menu-choose '((external . :e) (present . :p) (available . :a))))
   (redisplay-frame-panes *application-frame*))
