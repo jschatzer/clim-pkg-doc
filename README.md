@@ -1,8 +1,8 @@
-***A simple package documentation, for now beeing more an example of a clim treeview application
+###### A simple package documentation, for now beeing more an example of a clim treeview application
 
 (using ideas and some code from Peter Seibel's MANIFEST quicklisp package; see his licence/disclaimer in clim-pkg-doc.lisp)
 
-*Usage:
+Usage:
 
 ```
 (clim-pkg-doc:pkg-doc)
