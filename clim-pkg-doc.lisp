@@ -54,10 +54,14 @@ APROPOS:
             (intern x :keyword)) 
           (cons "COMMON-LISP" (sort (remove "COMMON-LISP" (mapcar 'package-name (list-all-packages)) :test 'equal) 'string<))))
 
+; ql-dist::name - see mail xach 8.6.2015 [quicklisp-projects] clim-pkg-doc (#927) -  that package is not available <--- ?
+; #<QL-DIST:SYSTEM zsort / zsort-20120520-git / quicklisp 2015-06-08>) 
+(defun ql-system-name (ql-system) (#~s'\S+ (.\S+) .+'\1' (princ-to-string ql-system)))
+
 (defun ql-systems () 
   (mapcar (lambda (x) 
             (intern (string-upcase x) :keyword)) 
-          (remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-dist::name (ql:system-list))))) ; sorted "downcase", remove ca 500 system-test, 3016 -> 2453 
+          (remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-system-name (ql:system-list))))) ; sorted "downcase", remove ca 500 system-test, 3016 -> 2453 
 
 ;upper-case-symbos
 (defun pkg-symbols (pkg &optional (stype :e))
