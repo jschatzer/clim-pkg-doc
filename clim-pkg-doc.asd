@@ -5,9 +5,8 @@
   :description "clim-package-documentation"
   :author "<schatzer.johann@gmail>"
   :license "BSD Simplified"
-  :depends-on (clim-widgets nsort perlre
-               ;named-readtables 
-               manifest repl-utilities alexandria)
+  :depends-on (clim-widgets
+               manifest repl-utilities)
   :serial t
   :components ((:file "package")
                (:file "clim-pkg-doc")))

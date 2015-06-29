@@ -1,4 +1,5 @@
 ;;;; clim-pkg-doc.lisp
+; ev use docparser, 15.6.15 <----
 
 #|
 ;;;----------------------------------------------------------------
@@ -35,10 +36,8 @@ POSSIBILITY OF SUCH DAMAGE.
 (in-package #:clim-pkg-doc)
 
 ;--------------------------------------------------------
-; 1) app-logic and helper
+; 1) helper
 ;--------------------------------------------------------
-(defvar *st* :e) ;symbol-type :e external :a available :p present
-
 (defparameter *help* "
 Click the root node to see a package's description or readme-file
 -----------------------------------------------------------------
@@ -46,33 +45,42 @@ APROPOS:
 1) on the first prompt type a string
 2) on the second promt press enter or type the name of a package
 -----------------------------------------------------------------
+CONFIGURE-POSSIBILITIES:
+1) adapt local-libs
+2) (setf clim-pkg-doc::*st* :a)  ;to change the symbol-type  :e external(default) :p resent :a available
+-----------------------------------------------------------------
 ")
 
-;both are upper-case-keywords
-(defun current-packages () 
-  (mapcar (lambda (x) 
-            (intern x :keyword)) 
-          (cons "COMMON-LISP" (sort (remove "COMMON-LISP" (mapcar 'package-name (list-all-packages)) :test 'equal) 'string<))))
+(defvar *st* :e) ;symbol-type :e external :a available :p present
 
-; ql-dist::name - see mail xach 8.6.2015 [quicklisp-projects] clim-pkg-doc (#927) -  that package is not available <--- ?
-; #<QL-DIST:SYSTEM zsort / zsort-20120520-git / quicklisp 2015-06-08>) 
-(defun ql-system-name (ql-system) (#~s'\S+ (.\S+) .+'\1' (princ-to-string ql-system)))
-
-(defun ql-systems () 
-  (mapcar (lambda (x) 
-            (intern (string-upcase x) :keyword)) 
-          (remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-system-name (ql:system-list))))) ; sorted "downcase", remove ca 500 system-test, 3016 -> 2453 
-
-;upper-case-symbos
 (defun pkg-symbols (pkg &optional (stype :e))
-  "a available, p present, e external"
+  "a available, p present, e external" ; returns a list of upper-case symbols
   (case stype
     (:e (loop for s being the external-symbols of pkg collect s))
     (:p (loop for s being the present-symbols  of pkg collect s))
     (:a (loop for s being the symbols          of pkg collect s))))
 
+; ql-dist::name - see mail xach 8.6.2015 [quicklisp-projects] clim-pkg-doc (#927) -  that package is not available <--- ?
+; #<QL-DIST:SYSTEM zsort / zsort-20120520-git / quicklisp 2015-06-08>) 
+(defun ql-system-name (ql-system) (#~s'\S+ (.\S+) .+'\1' (princ-to-string ql-system)))
+
 ;--------------------------------------------------------
-; 2) create a grouped tree from the symbols of a package, with editing of some packages, e.g. common-lisp, clim
+; 2) sytem-categories, all 3 return upper-case-keywords
+;--------------------------------------------------------
+(defun current-packages () 
+  (mapcar (lambda (x) (intern x :keyword)) 
+          (cons "COMMON-LISP" (sort (remove "COMMON-LISP" (mapcar 'package-name (list-all-packages)) :test 'equal) 'string<))))
+
+(defun ql-systems () 
+  (mapcar (lambda (x) (intern (string-upcase x) :keyword)) 
+          (remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-system-name (ql:system-list))))) ; sorted "downcase", remove ca 500 system-test, 3016 -> 2453 
+
+(defun local-libs ()
+  (if (probe-file #P"~/src/lisp/") (push #P"~/src/lisp/" ql:*local-project-directories*)) ; <--- comment out or adapt to your system -----
+  (sort (mapcar (lambda (x) (intern (string-upcase x) :keyword)) (ql:list-local-systems)) 'string<))
+
+;--------------------------------------------------------
+; 3) create a grouped tree from the symbols of a package, with editing of some packages, e.g. common-lisp, clim
 ;--------------------------------------------------------
 (defun mktree (l) (mapcar (lambda (x) (if (null (cdr x)) x (cons (cw:key (car x)) (mapcar #'list x)))) (cw:pack l))) ; ev recursive for all -
 
@@ -91,8 +99,8 @@ APROPOS:
 (defun spec-op () (cons :special-operator (mktree (sort (remove-if-not #'special-operator-p (pkg-symbols :common-lisp *st*)) #'string<))))
 
 ;--------------------------------------------------------
-; group symbols into manifest::*categories*
-; idea/concept/code from "manifest" quicklisp package
+; 4) group symbols into manifest::*categories*
+;    idea/concept/code from "manifest" quicklisp package
 ;--------------------------------------------------------
 (defun sorted-symbols-in-a-category (pkg what)
   "return a sorted list of all symbols in a category"
@@ -117,27 +125,17 @@ APROPOS:
           (t (mapcar (lambda (x) (cons (car x) (mktree (cdr x)))) (symbol-groups p)))))
 
 ;--------------------------------------------------------
-; 3) color lambda list
+; 5) color lambda list
 ;--------------------------------------------------------
-(defun &symbol-p (s) (if (char= #\& (elt (symbol-name s) 0)) t))
-
-(defun draw (s x)
-  (if (&symbol-p x)
-    (with-drawing-options (s :ink +red+ :text-face :bold) (format s "~(~a ~)" x))
-    (with-drawing-options (s :ink +black+) (format s "~(~a ~)" x))))
-
-; corrige last space
-(defun color-lambda (s lst)
-  (princ "(" s)
+(defun color-lambda (s l)
   (mapc (lambda (x)
-          (cond ((and (atom x) (not (symbolp x))) (format s "~(~a ~)" x)) ;;; there may be strings,  numbers as vaules , create errors with draw
-                ((atom x) (draw s x))
-                (t (color-lambda s x))))
-        lst)
-  (princ ")" s))
+          (if (#~m'^&' x)
+            (with-drawing-options (s :ink +red+ :text-face :bold) (format s "~(~a~)" x))
+            (format s "~(~a~)" x)))
+        (ppcre:split "(&[^ )]+)" (princ-to-string l) :with-registers-p t)))
 
 ;--------------------------------------------------------
-; 4) create a package or system menu-list     ---> ev submenus (com. cl- ...)
+; 6) create a package or system menu-list     ---> ev submenus (com. cl- ...)
 ;--------------------------------------------------------
 (defmethod cw:key ((s symbol)) (#~s'([-./]).*'\1'(symbol-name s)))   ; cl- com. asdf/
 
@@ -162,7 +160,7 @@ APROPOS:
     (princ (string-downcase (car item)) strm)))
 
 ;--------------------------------------------------------
-; 5) gui
+; 7) gui
 ;--------------------------------------------------------
 (define-application-frame pkg-doc (cw:tree)
  ((info :accessor info :initform ""))
@@ -174,7 +172,7 @@ APROPOS:
 
 (defun disp-info (f p) 
   (let ((sym (info *application-frame*)))
-    (if (equalp sym (cw::node-name (cw::group *application-frame*))) (princ (manifest::readme-text sym)))   ; u/o short pkg doc <--------
+    (if (equalp sym (cw::node-name (cw::group *application-frame*))) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------
     (dolist (what manifest::*categories*)
       (when (manifest::is sym what) 
         (if (member what '(:function :macro :generic-function :slot-accessor)) 
@@ -196,18 +194,26 @@ APROPOS:
 
 ; menu-commands 
 (define-pkg-doc-command (packages :menu t) ()
-  (let ((pkg (menu-choose (create-menu (current-packages)) :printer 'print-numbered-pkg :n-columns 4)))  ;3
+  (let ((pkg (menu-choose (create-menu (current-packages)) :printer 'print-numbered-pkg :n-columns 3)))
     (cw:t2h (list (cons pkg (symbol-tree pkg))))
-    (with-application-frame (f) (setf (cw::group f) (make-instance 'cw:node :sup pkg :disp-inf t)) (redisplay-frame-panes f))))
+    ;(with-application-frame (f) (setf (cw::group f) (make-instance 'cw:node :sup pkg :disp-inf t)) (redisplay-frame-panes f))))
+    (with-application-frame (f) (setf (cw::group f) (make-instance 'cw:node :sup pkg :disp-inf t)) (redisplay-frame-panes f :force-p t))))
 
 (define-pkg-doc-command (quicklisp :menu t) ()
-  (let ((sys (menu-choose (create-menu (ql-systems)) :printer 'print-numbered-pkg :n-columns 6))) ;4
+  (let ((sys (menu-choose (create-menu (ql-systems)) :printer 'print-numbered-pkg :n-columns 3)))
     (ql:quickload sys)
     (if (find-package sys) (cw:t2h (list (cons sys (symbol-tree sys)))))
-    (with-application-frame (f) (setf (cw::group f) (make-instance 'cw:node :sup sys :disp-inf t)) (redisplay-frame-panes f))))
+    (with-application-frame (f) (setf (cw::group f) (make-instance 'cw:node :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
+
+(define-pkg-doc-command (local-projects :menu "LocalLibs") ()
+  (let ((sys (menu-choose (create-menu (local-libs)) :printer 'print-numbered-pkg :n-columns 3)))
+    (ql:quickload sys)
+    (if (find-package sys) (cw:t2h (list (cons sys (symbol-tree sys)))))
+    (with-application-frame (f) (setf (cw::group f) (make-instance 'cw:node :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
 
 (define-pkg-doc-command (com-apropos :menu t) ()
-  (setf (info *application-frame*) (apropos (accept 'string) (accept 'symbol :default nil))))
+  ;(setf (info *application-frame*) (apropos (accept 'string) (accept 'symbol :default nil))))
+  (setf (info *application-frame*) (apropos (accept 'string) (accept 'symbol :default nil) 'external-only)))
 
 (define-pkg-doc-command (help :menu t) ()
   (setf (info *application-frame*) (princ *help* *standard-input*)))
@@ -221,6 +227,6 @@ APROPOS:
   (redisplay-frame-panes *application-frame*))
 
 ;--------------------------------------------------------
-; 6) main
+; 8) main
 ;--------------------------------------------------------
 (defun pkg-doc (&optional (pkg :clim)) (tview (list (cons pkg (symbol-tree pkg))) pkg))
