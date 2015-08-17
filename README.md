@@ -10,3 +10,5 @@ Usage:
 (clim-pkg-doc:pkg-doc :cl-fad)
 
 ```
+
+![ScreenShot](clim1.png)
