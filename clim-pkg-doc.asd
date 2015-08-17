@@ -9,5 +9,7 @@
                manifest repl-utilities)
   :serial t
   :components ((:file "package")
-               (:file "clim-pkg-doc")))
+               (:file "clim-pkg-doc")
+               ;#+quicklisp(:file "quicklisp")
+							 ))
 

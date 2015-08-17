@@ -60,9 +60,11 @@ CONFIGURE-POSSIBILITIES:
     (:p (loop for s being the present-symbols  of pkg collect s))
     (:a (loop for s being the symbols          of pkg collect s))))
 
+;#|
 ; ql-dist::name - see mail xach 8.6.2015 [quicklisp-projects] clim-pkg-doc (#927) -  that package is not available <--- ?
 ; #<QL-DIST:SYSTEM zsort / zsort-20120520-git / quicklisp 2015-06-08>) 
 (defun ql-system-name (ql-system) (#~s'\S+ (.\S+) .+'\1' (princ-to-string ql-system)))
+;|#
 
 ;--------------------------------------------------------
 ; 2) sytem-categories, all 3 return upper-case-keywords
@@ -71,13 +73,17 @@ CONFIGURE-POSSIBILITIES:
   (mapcar (lambda (x) (intern x :keyword)) 
           (cons "COMMON-LISP" (sort (remove "COMMON-LISP" (mapcar 'package-name (list-all-packages)) :test 'equal) 'string<))))
 
+;#|
+#+quicklisp
 (defun ql-systems () 
   (mapcar (lambda (x) (intern (string-upcase x) :keyword)) 
           (remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-system-name (ql:system-list))))) ; sorted "downcase", remove ca 500 system-test, 3016 -> 2453 
 
+#+quicklisp
 (defun local-libs ()
   (if (probe-file #P"~/src/lisp/") (push #P"~/src/lisp/" ql:*local-project-directories*)) ; <--- comment out or adapt to your system -----
   (sort (mapcar (lambda (x) (intern (string-upcase x) :keyword)) (ql:list-local-systems)) 'string<))
+;|#
 
 ;--------------------------------------------------------
 ; 3) create a grouped tree from the symbols of a package, with editing of some packages, e.g. common-lisp, clim
@@ -199,17 +205,21 @@ CONFIGURE-POSSIBILITIES:
     ;(with-application-frame (f) (setf (cw::group f) (make-instance 'cw:node :sup pkg :disp-inf t)) (redisplay-frame-panes f))))
     (with-application-frame (f) (setf (cw::group f) (make-instance 'cw:node :sup pkg :disp-inf t)) (redisplay-frame-panes f :force-p t))))
 
+;#|
+#+quicklisp
 (define-pkg-doc-command (quicklisp :menu t) ()
   (let ((sys (menu-choose (create-menu (ql-systems)) :printer 'print-numbered-pkg :n-columns 3)))
     (ql:quickload sys)
     (if (find-package sys) (cw:t2h (list (cons sys (symbol-tree sys)))))
     (with-application-frame (f) (setf (cw::group f) (make-instance 'cw:node :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
 
+#+quicklisp
 (define-pkg-doc-command (local-projects :menu "LocalLibs") ()
   (let ((sys (menu-choose (create-menu (local-libs)) :printer 'print-numbered-pkg :n-columns 3)))
     (ql:quickload sys)
     (if (find-package sys) (cw:t2h (list (cons sys (symbol-tree sys)))))
     (with-application-frame (f) (setf (cw::group f) (make-instance 'cw:node :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
+;|#
 
 (define-pkg-doc-command (com-apropos :menu t) ()
   ;(setf (info *application-frame*) (apropos (accept 'string) (accept 'symbol :default nil))))
