@@ -1,5 +1,7 @@
 ;;;; clim-pkg-doc.lisp
 ; ev use docparser, 15.6.15 <----
+;COM.INFORMATIMAGO.TOOLS.QUICKLISP    <------
+;COM.INFORMATIMAGO.LISPDOC
 
 #|
 ;;;----------------------------------------------------------------
@@ -176,7 +178,7 @@ CONFIGURE-POSSIBILITIES:
    (info-pane :application :display-function 'disp-info :incremental-redisplay t))
 	(:layouts (double (horizontally () tree-pane (make-pane 'clim-extensions:box-adjuster-gadget) info-pane))))
 
-(defun disp-info (f p) 
+#;(defun disp-info (f p) 
   (let ((sym (info *application-frame*)))
     (if (equalp sym (cw::node-name (cw::group *application-frame*))) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------
     (dolist (what manifest::*categories*)
@@ -189,6 +191,39 @@ CONFIGURE-POSSIBILITIES:
         (terpri  p) (terpri  p) (terpri  p)
         (with-drawing-options (p :text-face :bold) (princ "Documentation String:" p)) (terpri  p)
         (princ (manifest::docs-for sym what) p)))))
+
+(defun disp-info (f p) 
+  (let ((sym (info *application-frame*)))
+    (if (equalp sym (cw::node-name (cw::group *application-frame*))) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------
+    (dolist (what manifest::*categories*)
+      (when (manifest::is sym what) 
+
+(flet ((doc-stg ()
+(progn 
+           (with-drawing-options (p :text-face :bold) 
+  (princ sym p) (terpri  p) (terpri  p)
+
+;        (terpri  p) (terpri  p) (terpri  p)
+;        (with-drawing-options (p :text-face :bold) 
+                              (princ "Documentation String:" p)) (terpri  p)
+        (princ (manifest::docs-for sym what) p))))
+ 
+
+        (if (member what '(:function :macro :generic-function :slot-accessor)) 
+
+          (progn 
+            (with-drawing-options (p :text-face :bold) 
+                                  (princ sym p) (terpri  p) (terpri  p)
+                                  (princ "Argument List:" p)) (terpri  p)
+            (color-lambda p (repl-utilities:arglist sym))
+           (doc-stg)
+            
+            )
+;          "")   ;;; <----------------------- ev do something for other categories?
+(doc-stg)
+  ))))))
+
+
 
 (defun tview (tree key)
   (cw:t2h tree)
@@ -224,6 +259,19 @@ CONFIGURE-POSSIBILITIES:
 (define-pkg-doc-command (com-apropos :menu t) ()
   ;(setf (info *application-frame*) (apropos (accept 'string) (accept 'symbol :default nil))))
   (setf (info *application-frame*) (apropos (accept 'string) (accept 'symbol :default nil) 'external-only)))
+
+#+quicklisp
+(define-pkg-doc-command (com-ql-apropos :menu t) ()
+  (setf (info *application-frame*) (ql:system-apropos (accept 'string))))  ; geht <----
+;;;  (setf (info *application-frame*) (#~s/"^.+?$"/(ql-system-name \\&)/mge (ql:system-apropos (accept 'string)))))
+
+;  (setf (info *application-frame*) (#~s'\S+ (.\S+) .+'\1'gm (ql:system-apropos (accept 'string)))))
+ ; (setf (info *application-frame*) (#~s'\S+ (.\S+) .+'\1'gm (princ-to-string (ql:system-apropos (accept 'string))))))
+
+
+
+
+
 
 (define-pkg-doc-command (help :menu t) ()
   (setf (info *application-frame*) (princ *help* *standard-input*)))
