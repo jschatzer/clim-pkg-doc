@@ -460,11 +460,18 @@ CONFIGURE-POSSIBILITIES:
 (defmethod cw-treeview::children ((n cw-treeview::node-pd)) (symbol-tree (cw-treeview::sup n)))    ; <----
 ;(defmethod cw-treeview::children ((n cw-treeview::node-pd)) (cdr (symbol-tree (cw-treeview::sup n))))    ; <----    anschauen
 
-;(defmethod cw-treeview::children ((n cw-treeview::node-pd)) (symbol-tree (mapcar 'car (cw-treeview::sup n))))
+;The name :FUNCTION does not designate any package
+(defmethod cw-treeview::children ((n cw-treeview::node-pd)) (mapcar 'car (symbol-tree (cw-treeview::sup n))))  ; das geht schon fast <---
+
+
 
 
 (defmethod cw-treeview::c-nodep ((n string)) (gethash n cw-treeview::*nodes*))
+(defmethod cw-treeview::c-nodep ((n symbol)) (gethash n cw-treeview::*nodes*))
+
 (defmethod cw-treeview::childnode-is-youngestsibling ((n string) ch) (and (cw-treeview::c-nodep n) (string= n (car (reverse ch)))))
+(defmethod cw-treeview::childnode-is-youngestsibling ((n symbol) ch) (and (cw-treeview::c-nodep n) (equal n (car (reverse ch)))))
+
 
 
 
