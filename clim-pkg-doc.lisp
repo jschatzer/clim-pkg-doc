@@ -448,11 +448,18 @@ CONFIGURE-POSSIBILITIES:
 ;(defclass leaf-pd (leaf) ())
 
 ;(defmethod cw-treeview::node-name ((n cw-treeview::node-pd)) (package-name (cw-treeview::sup n)))
+;(defmethod node-name ((n cw-treeview::node-pd)) (string-downcase (cw-treeview::sup n)))
+;(defmethod node-name ((n cw-treeview::node-pd)) (string-downcase (o:stg (car (cw-treeview::sup n)))))
 
-(defmethod cw-treeview::children ((n cw-treeview::node-pd)) (gethash (cw-treeview::sup n) cw-treeview::*nodes*))
+
+;(defmethod cw-treeview::children ((n cw-treeview::node-pd)) (gethash (cw-treeview::sup n) cw-treeview::*nodes*))
+;(defmethod cw-treeview::children ((n cw-treeview::node-pd)) (gethash (node-name (cw-treeview::sup n)) cw-treeview::*nodes*))
+;(defmethod cw-treeview::children ((n cw-treeview::node-pd)) (gethash n cw-treeview::*nodes*))
 
 ;das geht noch am besten, aber falsch
 (defmethod cw-treeview::children ((n cw-treeview::node-pd)) (symbol-tree (cw-treeview::sup n)))    ; <----
+;(defmethod cw-treeview::children ((n cw-treeview::node-pd)) (cdr (symbol-tree (cw-treeview::sup n))))    ; <----    anschauen
+
 ;(defmethod cw-treeview::children ((n cw-treeview::node-pd)) (symbol-tree (mapcar 'car (cw-treeview::sup n))))
 
 
