@@ -173,11 +173,114 @@ CONFIGURE-POSSIBILITIES:
 (define-application-frame pkg-doc (cw:tree)
  ((info :accessor info :initform ""))
   (:command-table (pkg-doc :inherit-from (cw:tree)))
-  (:menu-bar cw:tree)
+  ;(:menu-bar cw:tree)  ; damit geht textsize, sonstige menu fehlt
+  ;(:menu-bar pkg-doc)   ; textsize geht nicht       <----- DEFAULT
+  ;(:menu-bar (pkg-doc :inherit-from (cw:tree))) ;; error <--
+  ;(:menu-bar xyz)
+  ;(:menu-bar (list cw:tree pkg-doc))
   (:panes 
    (tree-pane :application :display-function 'cw:display-tree :incremental-redisplay t :end-of-line-action :allow :end-of-page-action :allow)
    (info-pane :application :display-function 'disp-info :incremental-redisplay t :end-of-page-action :allow))
   (:layouts (double (horizontally () tree-pane (make-pane 'clim-extensions:box-adjuster-gadget) info-pane))))
+
+;(define-command-table xyz :inherit-from '(cw:tree pkg-doc) :inherit-menu t)
+;(define-command-table xyz :inherit-from (list cw:tree pkg-doc) :inherit-menu t)
+
+;(add-menu-item-to-command-table 'pkg-doc "textsize" :command 'cw::txt-size)  ; zeit txtsize in gray , geht noch nicht
+(add-menu-item-to-command-table 'pkg-doc "textsize" :command 'txt-size)
+
+
+(defun disp-info (f p) 
+  (let ((sym (info *application-frame*))
+        (pkg (cw::node-name (cw::group *application-frame*))))
+    (dolist (what manifest::*categories*)
+      (when (manifest::is sym what) 
+        (flet ((doc-stg ()
+                 (with-drawing-options (p :text-face :bold) 
+                   (format p "~2%Documentation String:~%"))
+                 (princ (or (manifest::docs-for sym what) "") p)))
+          (cond ((equalp sym pkg) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
+                ((member what '(:function :macro :generic-function :slot-accessor)) 
+                 (progn 
+                   (with-drawing-options (p :text-face :bold) 
+                     (format p "~a:~a~2%Argument List:~%" pkg sym))
+                   (color-lambda p (repl-utilities:arglist sym))
+                   (doc-stg)))
+                ((member what '(:variable :class :constant :condition)) (doc-stg))  ; cond noch zu testen
+                (t "")))))))
+
+;(cw:inf-meth cw:node-pd)
+(cw:inf-meth node-pd)
+
+;(defclass node-pd (node) ())
+;(defclass leaf-pd (leaf) ())
+
+(defmethod cw:node-name ((n node-pd)) (cw:sup n))
+(defmethod cw:children ((n node-pd)) (gethash (cw:sup n) cw:*nodes*)) ;children are symobols 
+(defmethod cw:c-nodep ((n symbol)) (gethash n cw:*nodes*)) ; the child is a node if it has children <----
+(defmethod cw:childnode-is-youngestsibling ((n symbol) ch) (and (cw:c-nodep n) (eql n (car (reverse ch)))))
+
+(defun tview (tree key)
+  (cw:t2h tree)
+  (cw:tree-view (make-instance 'node-pd :sup key :disp-inf t) 'symbol 'pkg-doc :right 800))
+
+;;; commands --------------------------------------
+(define-pkg-doc-command show-info ((item 'symbol :gesture :select))   
+  (setf (info *application-frame*) item))
+
+; menu-commands 
+(define-pkg-doc-command (packages :menu t) ()
+  (let ((pkg (menu-choose (create-menu (current-packages)) :printer 'print-numbered-pkg :n-columns 3)))
+    (cw:t2h (list (cons pkg (symbol-tree pkg))))
+    (with-application-frame (f) (setf (cw:group f) (make-instance 'node-pd :sup pkg :disp-inf t)) (redisplay-frame-panes f :force-p t))))
+
+#+quicklisp
+(define-pkg-doc-command (quicklisp :menu t) ()
+  (let ((sys (menu-choose (create-menu (ql-systems)) :printer 'print-numbered-pkg :n-columns 3)))
+    (ql:quickload sys)
+    (if (find-package sys) (cw:t2h (list (cons sys (symbol-tree sys)))))
+    (with-application-frame (f) (setf (cw:group f) (make-instance 'node-pd :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
+
+#+quicklisp
+(define-pkg-doc-command (local-projects :menu "LocalLibs") ()
+  (let ((sys (menu-choose (create-menu (local-libs)) :printer 'print-numbered-pkg :n-columns 3)))
+    (ql:quickload sys)
+    (if (find-package sys) (cw:t2h (list (cons sys (symbol-tree sys)))))
+    (with-application-frame (f) (setf (cw:group f) (make-instance 'node-pd :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
+
+(define-pkg-doc-command (com-apropos :menu t) ()
+  ;(setf (info *application-frame*) (apropos (accept 'string) (accept 'symbol :default nil))))
+  (setf (info *application-frame*) (apropos (accept 'string) (accept 'symbol :default nil) 'external-only)))
+
+#+quicklisp
+(define-pkg-doc-command (com-ql-apropos :menu t) ()
+  (setf (info *application-frame*) (ql:system-apropos (accept 'string))))  ; geht <----
+
+(define-pkg-doc-command (help :menu t) ()
+  (setf (info *application-frame*) (princ *help* *standard-input*)))
+
+(define-pkg-doc-command (clear :menu t) ()
+  (window-clear *standard-input*))
+
+; meaning/utility not yet clear
+(define-pkg-doc-command (symboltypes :menu t) ()
+  (setf *st* (menu-choose '((external . :e) (present . :p) (available . :a))))
+  (redisplay-frame-panes *application-frame*))
+
+;--------------------------------------------------------
+; 8) main
+;--------------------------------------------------------
+(defun pkg-doc (&optional (pkg :clim)) (tview (list (cons pkg (symbol-tree pkg))) pkg))
+
+; (defun pd () ; pdt
+; ev mit opt oder keyword
+;(bordeaux-threads:make-thread 'clim-pkg-doc:pkg-doc)
+;:vs 
+(defun pd () "load clim-pkg-doc" (clim-sys:make-process #'clim-pkg-doc:pkg-doc))
+
+
+;;;;;;
+@END
 
 #|
 (defun disp-info (f p) 
@@ -324,25 +427,6 @@ CONFIGURE-POSSIBILITIES:
 |#
 
 
-(defun disp-info (f p) 
-  (let ((sym (info *application-frame*))
-        (pkg (cw::node-name (cw::group *application-frame*))))
-    (dolist (what manifest::*categories*)
-      (when (manifest::is sym what) 
-        (flet ((doc-stg ()
-                 (with-drawing-options (p :text-face :bold) 
-                   (format p "~2%Documentation String:~%"))
-                 (princ (or (manifest::docs-for sym what) "") p)))
-          (cond ((equalp sym pkg) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
-                ((member what '(:function :macro :generic-function :slot-accessor)) 
-                 (progn 
-                   (with-drawing-options (p :text-face :bold) 
-                     (format p "~a:~a~2%Argument List:~%" pkg sym))
-                   (color-lambda p (repl-utilities:arglist sym))
-                   (doc-stg)))
-                ((member what '(:variable :class :constant :condition)) (doc-stg))  ; cond noch zu testen
-                (t "")))))))
-
 
 
 ;-------------
@@ -360,6 +444,7 @@ CONFIGURE-POSSIBILITIES:
         (terpri  p) (terpri  p) (terpri  p)
         (with-drawing-options (p :text-face :bold) (princ "Documentation String:" p)) (terpri  p)
         (princ (manifest::docs-for sym what) p)))))
+
 
 
 
@@ -441,12 +526,8 @@ CONFIGURE-POSSIBILITIES:
 ;|#
 |#
 ;==================================================================
-(cw-treeview:inf-meth cw-treeview::node-pd) ;pkg-doc
-;(cw:inf-meth node-pd) ;pkg-doc
 
-;(defclass node-pd (node) ())
-;(defclass leaf-pd (leaf) ())
-
+#|
 ;(defmethod cw-treeview::node-name ((n cw-treeview::node-pd)) (package-name (cw-treeview::sup n)))
 ;(defmethod node-name ((n cw-treeview::node-pd)) (string-downcase (cw-treeview::sup n)))
 ;(defmethod node-name ((n cw-treeview::node-pd)) (string-downcase (o:stg (car (cw-treeview::sup n)))))
@@ -471,75 +552,7 @@ CONFIGURE-POSSIBILITIES:
 
 (defmethod cw-treeview::childnode-is-youngestsibling ((n string) ch) (and (cw-treeview::c-nodep n) (string= n (car (reverse ch)))))
 (defmethod cw-treeview::childnode-is-youngestsibling ((n symbol) ch) (and (cw-treeview::c-nodep n) (equal n (car (reverse ch)))))
-
-
-
-
-(defun tview (tree key)
-  (cw-treeview:t2h tree)
-  (cw-treeview:tree-view (make-instance 'cw-treeview::node-pd :sup key :disp-inf t) 'symbol 'pkg-doc :right 800))
-
-;;; commands --------------------------------------
-(define-pkg-doc-command show-info ((item 'symbol :gesture :select))   
-  (setf (info *application-frame*) item))
-
-; menu-commands 
-(define-pkg-doc-command (packages :menu t) ()
-  (let ((pkg (menu-choose (create-menu (current-packages)) :printer 'print-numbered-pkg :n-columns 3)))
-    (cw-treeview:t2h (list (cons pkg (symbol-tree pkg))))
-    ;(with-application-frame (f) (setf (cw-treeview::group f) (make-instance 'cw-treeview::node-pd :sup pkg :disp-inf t)) (redisplay-frame-panes f))))
-    (with-application-frame (f) (setf (cw-treeview::group f) (make-instance 'cw-treeview::node-pd :sup pkg :disp-inf t)) (redisplay-frame-panes f :force-p t))))
+|#
 
 ;#|
-#+quicklisp
-(define-pkg-doc-command (quicklisp :menu t) ()
-  (let ((sys (menu-choose (create-menu (ql-systems)) :printer 'print-numbered-pkg :n-columns 3)))
-    (ql:quickload sys)
-    (if (find-package sys) (cw-treeview:t2h (list (cons sys (symbol-tree sys)))))
-    (with-application-frame (f) (setf (cw-treeview::group f) (make-instance 'cw-treeview::node-pd :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
-
-#+quicklisp
-(define-pkg-doc-command (local-projects :menu "LocalLibs") ()
-  (let ((sys (menu-choose (create-menu (local-libs)) :printer 'print-numbered-pkg :n-columns 3)))
-    (ql:quickload sys)
-    (if (find-package sys) (cw-treeview:t2h (list (cons sys (symbol-tree sys)))))
-    (with-application-frame (f) (setf (cw-treeview::group f) (make-instance 'cw-treeview::node-pd :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
-
-(define-pkg-doc-command (com-apropos :menu t) ()
-  ;(setf (info *application-frame*) (apropos (accept 'string) (accept 'symbol :default nil))))
-  (setf (info *application-frame*) (apropos (accept 'string) (accept 'symbol :default nil) 'external-only)))
-
-#+quicklisp
-(define-pkg-doc-command (com-ql-apropos :menu t) ()
-  (setf (info *application-frame*) (ql:system-apropos (accept 'string))))  ; geht <----
-;;;  (setf (info *application-frame*) (#~s/"^.+?$"/(ql-system-name \\&)/mge (ql:system-apropos (accept 'string)))))
-
-;  (setf (info *application-frame*) (#~s'\S+ (.\S+) .+'\1'gm (ql:system-apropos (accept 'string)))))
- ; (setf (info *application-frame*) (#~s'\S+ (.\S+) .+'\1'gm (princ-to-string (ql:system-apropos (accept 'string))))))
-
-;===================================================================
-
-
-
-
-(define-pkg-doc-command (help :menu t) ()
-  (setf (info *application-frame*) (princ *help* *standard-input*)))
-
-(define-pkg-doc-command (clear :menu t) ()
-  (window-clear *standard-input*))
-
-; meaning/utility not yet clear
-(define-pkg-doc-command (symboltypes :menu t) ()
-  (setf *st* (menu-choose '((external . :e) (present . :p) (available . :a))))
-  (redisplay-frame-panes *application-frame*))
-
-;--------------------------------------------------------
-; 8) main
-;--------------------------------------------------------
-(defun pkg-doc (&optional (pkg :clim)) (tview (list (cons pkg (symbol-tree pkg))) pkg))
-
-; (defun pd () ; pdt
-; ev mit opt oder keyword
-;(bordeaux-threads:make-thread 'clim-pkg-doc:pkg-doc)
-;:vs 
-(defun pd () "load clim-pkg-doc" (clim-sys:make-process #'clim-pkg-doc:pkg-doc))
+;---------------------------
