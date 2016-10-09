@@ -279,280 +279,283 @@ CONFIGURE-POSSIBILITIES:
 (defun pd () "load clim-pkg-doc" (clim-sys:make-process #'clim-pkg-doc:pkg-doc))
 
 
-;;;;;;
-@END
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;@END
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#|
-(defun disp-info (f p) 
-  (let ((sym (info *application-frame*)))
-    (if (equalp sym (cw::node-name (cw::group *application-frame*))) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------
-    (dolist (what manifest::*categories*)
-      (when (manifest::is sym what) 
-        (if (member what '(:function :macro :generic-function :slot-accessor)) 
-          (progn 
-            (with-drawing-options (p :text-face :bold) (princ "Argument List:" p)) (terpri  p)
-            (color-lambda p (repl-utilities:arglist sym)))
-          "")   ;;; <----------------------- ev do something for other categories?
-        (terpri  p) (terpri  p) (terpri  p)
-        (with-drawing-options (p :text-face :bold) (princ "Documentation String:" p)) (terpri  p)
-        (princ (manifest::docs-for sym what) p)))))
-
-
-(defun disp-info (f p) 
-  (let ((sym (info *application-frame*)))
-    (if (equalp sym (cw::node-name (cw::group *application-frame*))) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------
-    (dolist (what manifest::*categories*)
-      (when (manifest::is sym what) 
-
-(flet ((doc-stg ()
-(progn 
-           (with-drawing-options (p :text-face :bold) 
-  (princ sym p) (terpri  p) (terpri  p)
-
-;        (terpri  p) (terpri  p) (terpri  p)
-;        (with-drawing-options (p :text-face :bold) 
-                              (princ "Documentation String:" p)) (terpri  p)
-        (princ (manifest::docs-for sym what) p))))
- 
-
-        (if (member what '(:function :macro :generic-function :slot-accessor)) 
-
-          (progn 
-            (with-drawing-options (p :text-face :bold) 
-                                  (princ sym p) (terpri  p) (terpri  p)
-                                  (princ "Argument List:" p)) (terpri  p)
-            (color-lambda p (repl-utilities:arglist sym))
-           (doc-stg)
-            
-            )
-;          "")   ;;; <----------------------- ev do something for other categories?
-(doc-stg)
-  ))))))
-
-
-(defun disp-info (f p) 
-  (let ((sym (info *application-frame*)))
-    (if (equalp sym (cw::node-name (cw::group *application-frame*))) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------
-    (dolist (what manifest::*categories*)
-      (when (manifest::is sym what) 
-        (flet ((doc-stg ()
-                 (with-drawing-options (p :text-face :bold) 
-                   (format p "~2%Documentation String:~%"))
-                 (princ (manifest::docs-for sym what) p)))
-          (if (member what '(:function :macro :generic-function :slot-accessor)) 
-            (progn 
-              (with-drawing-options (p :text-face :bold) 
-;                (format p "~a~2%Argument List:~%" sym))
-                (format p "~a:~a~2%Argument List:~%" (cw::node-name (cw::group *application-frame*)) sym))
-              (color-lambda p (repl-utilities:arglist sym))
-              (doc-stg))
-            (doc-stg)))))))
-
-
-(defun disp-info (f p) 
-  (let ((sym (info *application-frame*))
-        (pkg (cw::node-name (cw::group *application-frame*))))
-    (if (equalp sym pkg) (princ (manifest::readme-text sym) p) "")   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
-    (dolist (what manifest::*categories*)
-      (when (manifest::is sym what) 
-        (flet ((doc-stg ()
-                 (with-drawing-options (p :text-face :bold) 
-                   (format p "~2%Documentation String:~%"))
-                 (princ (manifest::docs-for sym what) p)))
-
-          #|
-          (if (member what '(:function :macro :generic-function :slot-accessor)) 
-            (progn 
-              (with-drawing-options (p :text-face :bold) 
-                (format p "~a:~a~2%Argument List:~%" pkg sym))
-              (color-lambda p (repl-utilities:arglist sym))
-              (doc-stg))
-            (doc-stg)))))))
-          |#
-
-(cond ((member what '(:function :macro :generic-function :slot-accessor)) 
-       (progn 
-         (with-drawing-options (p :text-face :bold) 
-           (format p "~a:~a~2%Argument List:~%" pkg sym))
-         (color-lambda p (repl-utilities:arglist sym))
-         (doc-stg)))
-      ((member what '(:variable :class :constant :condition)) (doc-stg))  ; cond noch zu testen
-      (t "")))))))
-
-(defun disp-info (f p) 
-  (let ((sym (info *application-frame*))
-        (pkg (cw::node-name (cw::group *application-frame*))))
-    (if (equalp sym pkg) (princ (manifest::readme-text sym) p) "")   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
-    (dolist (what manifest::*categories*)
-      (when (manifest::is sym what) 
-        (flet ((doc-stg ()
-                 (with-drawing-options (p :text-face :bold) 
-                   (format p "~2%Documentation String:~%"))
-                 (princ (or (manifest::docs-for sym what) "") p)))
-          (cond ((member what '(:function :macro :generic-function :slot-accessor)) 
-                 (progn 
-                   (with-drawing-options (p :text-face :bold) 
-                     (format p "~a:~a~2%Argument List:~%" pkg sym))
-                   (color-lambda p (repl-utilities:arglist sym))
-                   (doc-stg)))
-                ((member what '(:variable :class :constant :condition)) (doc-stg))  ; cond noch zu testen
-                (t "")))))))
-
-
-;geht ~gut
-(defun disp-info (f p) 
-  (let ((sym (info *application-frame*))
-        (pkg (cw::node-name (cw::group *application-frame*))))
-;    (if (equalp sym pkg) (princ (manifest::readme-text sym) p) "")   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
-    (dolist (what manifest::*categories*)
-      (when (manifest::is sym what) 
-        (flet ((doc-stg ()
-                 (with-drawing-options (p :text-face :bold) 
-                   (format p "~2%Documentation String:~%"))
-                 (princ (or (manifest::docs-for sym what) "") p)))
-          (cond 
-
-                     ((equalp sym pkg) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
-                 ((member what '(:function :macro :generic-function :slot-accessor)) 
-                 (progn 
-                   (with-drawing-options (p :text-face :bold) 
-                     (format p "~a:~a~2%Argument List:~%" pkg sym))
-                   (color-lambda p (repl-utilities:arglist sym))
-                   (doc-stg)))
-                ((member what '(:variable :class :constant :condition)) (doc-stg))  ; cond noch zu testen
-
-
-
-                (t "")))))))
-|#
-
-
-
-
-;-------------
-;orig
-#;(defun disp-info (f p) 
-  (let ((sym (info *application-frame*)))
-    (if (equalp sym (cw-treeview::node-name (cw-treeview::group *application-frame*))) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------
-    (dolist (what manifest::*categories*)
-      (when (manifest::is sym what) 
-        (if (member what '(:function :macro :generic-function :slot-accessor)) 
-          (progn 
-            (with-drawing-options (p :text-face :bold) (princ "Argument List:" p)) (terpri  p)
-            (color-lambda p (repl-utilities:arglist sym)))
-          "")   ;;; <----------------------- ev do something for other categories?
-        (terpri  p) (terpri  p) (terpri  p)
-        (with-drawing-options (p :text-face :bold) (princ "Documentation String:" p)) (terpri  p)
-        (princ (manifest::docs-for sym what) p)))))
-
-
-
-
-
-#|
-;==================================================================
-(defun tview (tree key)
-  (cw:t2h tree)
-  (cw:tree-view (make-instance 'cw::node :sup key :disp-inf t) 'symbol 'pkg-doc :right 800))
-
-;;; commands --------------------------------------
-(define-pkg-doc-command show-info ((item 'symbol :gesture :select))   
-  (setf (info *application-frame*) item))
-
-; menu-commands 
-(define-pkg-doc-command (packages :menu t) ()
-  (let ((pkg (menu-choose (create-menu (current-packages)) :printer 'print-numbered-pkg :n-columns 3)))
-    (cw:t2h (list (cons pkg (symbol-tree pkg))))
-    ;(with-application-frame (f) (setf (cw::group f) (make-instance 'cw:node :sup pkg :disp-inf t)) (redisplay-frame-panes f))))
-    (with-application-frame (f) (setf (cw::group f) (make-instance 'cw:node :sup pkg :disp-inf t)) (redisplay-frame-panes f :force-p t))))
-
-;#|
-#+quicklisp
-(define-pkg-doc-command (quicklisp :menu t) ()
-  (let ((sys (menu-choose (create-menu (ql-systems)) :printer 'print-numbered-pkg :n-columns 3)))
-    (ql:quickload sys)
-    (if (find-package sys) (cw:t2h (list (cons sys (symbol-tree sys)))))
-    (with-application-frame (f) (setf (cw::group f) (make-instance 'cw:node :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
-
-#+quicklisp
-(define-pkg-doc-command (local-projects :menu "LocalLibs") ()
-  (let ((sys (menu-choose (create-menu (local-libs)) :printer 'print-numbered-pkg :n-columns 3)))
-    (ql:quickload sys)
-    (if (find-package sys) (cw:t2h (list (cons sys (symbol-tree sys)))))
-    (with-application-frame (f) (setf (cw::group f) (make-instance 'cw:node :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
-;|#
-;==================================================================
-|#
-
-
-
-;==================================================================
-#|
-(cw:inf-meth cw::node-pd) ;pkg-doc
-(defmethod cw::children ((n cw::node-pd)) (gethash (cw::sup n) cw::*nodes*))
-(defmethod cw::c-nodep ((n string)) (gethash n cw::*nodes*))
-(defmethod cw::childnode-is-youngestsibling ((n string) cw::ch) (and (cw::c-nodep n) (string= n (car (reverse cw::ch)))))
-
-
-(defun tview (tree key)
-  (cw:t2h tree)
-  (cw:tree-view (make-instance 'cw::node-pd :sup key :disp-inf t) 'symbol 'pkg-doc :right 800))
-
-;;; commands --------------------------------------
-(define-pkg-doc-command show-info ((item 'symbol :gesture :select))   
-  (setf (info *application-frame*) item))
-
-; menu-commands 
-(define-pkg-doc-command (packages :menu t) ()
-  (let ((pkg (menu-choose (create-menu (current-packages)) :printer 'print-numbered-pkg :n-columns 3)))
-    (cw:t2h (list (cons pkg (symbol-tree pkg))))
-    ;(with-application-frame (f) (setf (cw::group f) (make-instance 'node-pd :sup pkg :disp-inf t)) (redisplay-frame-panes f))))
-    (with-application-frame (f) (setf (cw::group f) (make-instance 'cw::node-pd :sup pkg :disp-inf t)) (redisplay-frame-panes f :force-p t))))
-
-;#|
-#+quicklisp
-(define-pkg-doc-command (quicklisp :menu t) ()
-  (let ((sys (menu-choose (create-menu (ql-systems)) :printer 'print-numbered-pkg :n-columns 3)))
-    (ql:quickload sys)
-    (if (find-package sys) (cw:t2h (list (cons sys (symbol-tree sys)))))
-    (with-application-frame (f) (setf (cw::group f) (make-instance 'cw::node-pd :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
-
-#+quicklisp
-(define-pkg-doc-command (local-projects :menu "LocalLibs") ()
-  (let ((sys (menu-choose (create-menu (local-libs)) :printer 'print-numbered-pkg :n-columns 3)))
-    (ql:quickload sys)
-    (if (find-package sys) (cw:t2h (list (cons sys (symbol-tree sys)))))
-    (with-application-frame (f) (setf (cw::group f) (make-instance 'cw::node-pd :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
-;|#
-|#
-;==================================================================
-
-#|
-;(defmethod cw-treeview::node-name ((n cw-treeview::node-pd)) (package-name (cw-treeview::sup n)))
-;(defmethod node-name ((n cw-treeview::node-pd)) (string-downcase (cw-treeview::sup n)))
-;(defmethod node-name ((n cw-treeview::node-pd)) (string-downcase (o:stg (car (cw-treeview::sup n)))))
-
-
-;(defmethod cw-treeview::children ((n cw-treeview::node-pd)) (gethash (cw-treeview::sup n) cw-treeview::*nodes*))
-;(defmethod cw-treeview::children ((n cw-treeview::node-pd)) (gethash (node-name (cw-treeview::sup n)) cw-treeview::*nodes*))
-;(defmethod cw-treeview::children ((n cw-treeview::node-pd)) (gethash n cw-treeview::*nodes*))
-
-;das geht noch am besten, aber falsch
-(defmethod cw-treeview::children ((n cw-treeview::node-pd)) (symbol-tree (cw-treeview::sup n)))    ; <----
-;(defmethod cw-treeview::children ((n cw-treeview::node-pd)) (cdr (symbol-tree (cw-treeview::sup n))))    ; <----    anschauen
-
-;The name :FUNCTION does not designate any package
-(defmethod cw-treeview::children ((n cw-treeview::node-pd)) (mapcar 'car (symbol-tree (cw-treeview::sup n))))  ; das geht schon fast <---
-
-
-
-
-(defmethod cw-treeview::c-nodep ((n string)) (gethash n cw-treeview::*nodes*))
-(defmethod cw-treeview::c-nodep ((n symbol)) (gethash n cw-treeview::*nodes*))
-
-(defmethod cw-treeview::childnode-is-youngestsibling ((n string) ch) (and (cw-treeview::c-nodep n) (string= n (car (reverse ch)))))
-(defmethod cw-treeview::childnode-is-youngestsibling ((n symbol) ch) (and (cw-treeview::c-nodep n) (equal n (car (reverse ch)))))
-|#
-
-;#|
-;---------------------------
+;
+;
+; #|
+; (defun disp-info (f p) 
+;   (let ((sym (info *application-frame*)))
+;     (if (equalp sym (cw::node-name (cw::group *application-frame*))) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------
+;     (dolist (what manifest::*categories*)
+;       (when (manifest::is sym what) 
+;         (if (member what '(:function :macro :generic-function :slot-accessor)) 
+;           (progn 
+;             (with-drawing-options (p :text-face :bold) (princ "Argument List:" p)) (terpri  p)
+;             (color-lambda p (repl-utilities:arglist sym)))
+;           "")   ;;; <----------------------- ev do something for other categories?
+;         (terpri  p) (terpri  p) (terpri  p)
+;         (with-drawing-options (p :text-face :bold) (princ "Documentation String:" p)) (terpri  p)
+;         (princ (manifest::docs-for sym what) p)))))
+; 
+; 
+; (defun disp-info (f p) 
+;   (let ((sym (info *application-frame*)))
+;     (if (equalp sym (cw::node-name (cw::group *application-frame*))) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------
+;     (dolist (what manifest::*categories*)
+;       (when (manifest::is sym what) 
+; 
+; (flet ((doc-stg ()
+; (progn 
+;            (with-drawing-options (p :text-face :bold) 
+;   (princ sym p) (terpri  p) (terpri  p)
+; 
+; ;        (terpri  p) (terpri  p) (terpri  p)
+; ;        (with-drawing-options (p :text-face :bold) 
+;                               (princ "Documentation String:" p)) (terpri  p)
+;         (princ (manifest::docs-for sym what) p))))
+;  
+; 
+;         (if (member what '(:function :macro :generic-function :slot-accessor)) 
+; 
+;           (progn 
+;             (with-drawing-options (p :text-face :bold) 
+;                                   (princ sym p) (terpri  p) (terpri  p)
+;                                   (princ "Argument List:" p)) (terpri  p)
+;             (color-lambda p (repl-utilities:arglist sym))
+;            (doc-stg)
+;             
+;             )
+; ;          "")   ;;; <----------------------- ev do something for other categories?
+; (doc-stg)
+;   ))))))
+; 
+; 
+; (defun disp-info (f p) 
+;   (let ((sym (info *application-frame*)))
+;     (if (equalp sym (cw::node-name (cw::group *application-frame*))) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------
+;     (dolist (what manifest::*categories*)
+;       (when (manifest::is sym what) 
+;         (flet ((doc-stg ()
+;                  (with-drawing-options (p :text-face :bold) 
+;                    (format p "~2%Documentation String:~%"))
+;                  (princ (manifest::docs-for sym what) p)))
+;           (if (member what '(:function :macro :generic-function :slot-accessor)) 
+;             (progn 
+;               (with-drawing-options (p :text-face :bold) 
+; ;                (format p "~a~2%Argument List:~%" sym))
+;                 (format p "~a:~a~2%Argument List:~%" (cw::node-name (cw::group *application-frame*)) sym))
+;               (color-lambda p (repl-utilities:arglist sym))
+;               (doc-stg))
+;             (doc-stg)))))))
+; 
+; 
+; (defun disp-info (f p) 
+;   (let ((sym (info *application-frame*))
+;         (pkg (cw::node-name (cw::group *application-frame*))))
+;     (if (equalp sym pkg) (princ (manifest::readme-text sym) p) "")   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
+;     (dolist (what manifest::*categories*)
+;       (when (manifest::is sym what) 
+;         (flet ((doc-stg ()
+;                  (with-drawing-options (p :text-face :bold) 
+;                    (format p "~2%Documentation String:~%"))
+;                  (princ (manifest::docs-for sym what) p)))
+; 
+;           #|
+;           (if (member what '(:function :macro :generic-function :slot-accessor)) 
+;             (progn 
+;               (with-drawing-options (p :text-face :bold) 
+;                 (format p "~a:~a~2%Argument List:~%" pkg sym))
+;               (color-lambda p (repl-utilities:arglist sym))
+;               (doc-stg))
+;             (doc-stg)))))))
+;           |#
+; 
+; (cond ((member what '(:function :macro :generic-function :slot-accessor)) 
+;        (progn 
+;          (with-drawing-options (p :text-face :bold) 
+;            (format p "~a:~a~2%Argument List:~%" pkg sym))
+;          (color-lambda p (repl-utilities:arglist sym))
+;          (doc-stg)))
+;       ((member what '(:variable :class :constant :condition)) (doc-stg))  ; cond noch zu testen
+;       (t "")))))))
+; 
+; (defun disp-info (f p) 
+;   (let ((sym (info *application-frame*))
+;         (pkg (cw::node-name (cw::group *application-frame*))))
+;     (if (equalp sym pkg) (princ (manifest::readme-text sym) p) "")   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
+;     (dolist (what manifest::*categories*)
+;       (when (manifest::is sym what) 
+;         (flet ((doc-stg ()
+;                  (with-drawing-options (p :text-face :bold) 
+;                    (format p "~2%Documentation String:~%"))
+;                  (princ (or (manifest::docs-for sym what) "") p)))
+;           (cond ((member what '(:function :macro :generic-function :slot-accessor)) 
+;                  (progn 
+;                    (with-drawing-options (p :text-face :bold) 
+;                      (format p "~a:~a~2%Argument List:~%" pkg sym))
+;                    (color-lambda p (repl-utilities:arglist sym))
+;                    (doc-stg)))
+;                 ((member what '(:variable :class :constant :condition)) (doc-stg))  ; cond noch zu testen
+;                 (t "")))))))
+; 
+; 
+; ;geht ~gut
+; (defun disp-info (f p) 
+;   (let ((sym (info *application-frame*))
+;         (pkg (cw::node-name (cw::group *application-frame*))))
+; ;    (if (equalp sym pkg) (princ (manifest::readme-text sym) p) "")   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
+;     (dolist (what manifest::*categories*)
+;       (when (manifest::is sym what) 
+;         (flet ((doc-stg ()
+;                  (with-drawing-options (p :text-face :bold) 
+;                    (format p "~2%Documentation String:~%"))
+;                  (princ (or (manifest::docs-for sym what) "") p)))
+;           (cond 
+; 
+;                      ((equalp sym pkg) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
+;                  ((member what '(:function :macro :generic-function :slot-accessor)) 
+;                  (progn 
+;                    (with-drawing-options (p :text-face :bold) 
+;                      (format p "~a:~a~2%Argument List:~%" pkg sym))
+;                    (color-lambda p (repl-utilities:arglist sym))
+;                    (doc-stg)))
+;                 ((member what '(:variable :class :constant :condition)) (doc-stg))  ; cond noch zu testen
+; 
+; 
+; 
+;                 (t "")))))))
+; |#
+; 
+; 
+; 
+; 
+; ;-------------
+; ;orig
+; #;(defun disp-info (f p) 
+;   (let ((sym (info *application-frame*)))
+;     (if (equalp sym (cw-treeview::node-name (cw-treeview::group *application-frame*))) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------
+;     (dolist (what manifest::*categories*)
+;       (when (manifest::is sym what) 
+;         (if (member what '(:function :macro :generic-function :slot-accessor)) 
+;           (progn 
+;             (with-drawing-options (p :text-face :bold) (princ "Argument List:" p)) (terpri  p)
+;             (color-lambda p (repl-utilities:arglist sym)))
+;           "")   ;;; <----------------------- ev do something for other categories?
+;         (terpri  p) (terpri  p) (terpri  p)
+;         (with-drawing-options (p :text-face :bold) (princ "Documentation String:" p)) (terpri  p)
+;         (princ (manifest::docs-for sym what) p)))))
+; 
+; 
+; 
+; 
+; 
+; #|
+; ;==================================================================
+; (defun tview (tree key)
+;   (cw:t2h tree)
+;   (cw:tree-view (make-instance 'cw::node :sup key :disp-inf t) 'symbol 'pkg-doc :right 800))
+; 
+; ;;; commands --------------------------------------
+; (define-pkg-doc-command show-info ((item 'symbol :gesture :select))   
+;   (setf (info *application-frame*) item))
+; 
+; ; menu-commands 
+; (define-pkg-doc-command (packages :menu t) ()
+;   (let ((pkg (menu-choose (create-menu (current-packages)) :printer 'print-numbered-pkg :n-columns 3)))
+;     (cw:t2h (list (cons pkg (symbol-tree pkg))))
+;     ;(with-application-frame (f) (setf (cw::group f) (make-instance 'cw:node :sup pkg :disp-inf t)) (redisplay-frame-panes f))))
+;     (with-application-frame (f) (setf (cw::group f) (make-instance 'cw:node :sup pkg :disp-inf t)) (redisplay-frame-panes f :force-p t))))
+; 
+; ;#|
+; #+quicklisp
+; (define-pkg-doc-command (quicklisp :menu t) ()
+;   (let ((sys (menu-choose (create-menu (ql-systems)) :printer 'print-numbered-pkg :n-columns 3)))
+;     (ql:quickload sys)
+;     (if (find-package sys) (cw:t2h (list (cons sys (symbol-tree sys)))))
+;     (with-application-frame (f) (setf (cw::group f) (make-instance 'cw:node :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
+; 
+; #+quicklisp
+; (define-pkg-doc-command (local-projects :menu "LocalLibs") ()
+;   (let ((sys (menu-choose (create-menu (local-libs)) :printer 'print-numbered-pkg :n-columns 3)))
+;     (ql:quickload sys)
+;     (if (find-package sys) (cw:t2h (list (cons sys (symbol-tree sys)))))
+;     (with-application-frame (f) (setf (cw::group f) (make-instance 'cw:node :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
+; ;|#
+; ;==================================================================
+; |#
+; 
+; 
+; 
+; ;==================================================================
+; #|
+; (cw:inf-meth cw::node-pd) ;pkg-doc
+; (defmethod cw::children ((n cw::node-pd)) (gethash (cw::sup n) cw::*nodes*))
+; (defmethod cw::c-nodep ((n string)) (gethash n cw::*nodes*))
+; (defmethod cw::childnode-is-youngestsibling ((n string) cw::ch) (and (cw::c-nodep n) (string= n (car (reverse cw::ch)))))
+; 
+; 
+; (defun tview (tree key)
+;   (cw:t2h tree)
+;   (cw:tree-view (make-instance 'cw::node-pd :sup key :disp-inf t) 'symbol 'pkg-doc :right 800))
+; 
+; ;;; commands --------------------------------------
+; (define-pkg-doc-command show-info ((item 'symbol :gesture :select))   
+;   (setf (info *application-frame*) item))
+; 
+; ; menu-commands 
+; (define-pkg-doc-command (packages :menu t) ()
+;   (let ((pkg (menu-choose (create-menu (current-packages)) :printer 'print-numbered-pkg :n-columns 3)))
+;     (cw:t2h (list (cons pkg (symbol-tree pkg))))
+;     ;(with-application-frame (f) (setf (cw::group f) (make-instance 'node-pd :sup pkg :disp-inf t)) (redisplay-frame-panes f))))
+;     (with-application-frame (f) (setf (cw::group f) (make-instance 'cw::node-pd :sup pkg :disp-inf t)) (redisplay-frame-panes f :force-p t))))
+; 
+; ;#|
+; #+quicklisp
+; (define-pkg-doc-command (quicklisp :menu t) ()
+;   (let ((sys (menu-choose (create-menu (ql-systems)) :printer 'print-numbered-pkg :n-columns 3)))
+;     (ql:quickload sys)
+;     (if (find-package sys) (cw:t2h (list (cons sys (symbol-tree sys)))))
+;     (with-application-frame (f) (setf (cw::group f) (make-instance 'cw::node-pd :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
+; 
+; #+quicklisp
+; (define-pkg-doc-command (local-projects :menu "LocalLibs") ()
+;   (let ((sys (menu-choose (create-menu (local-libs)) :printer 'print-numbered-pkg :n-columns 3)))
+;     (ql:quickload sys)
+;     (if (find-package sys) (cw:t2h (list (cons sys (symbol-tree sys)))))
+;     (with-application-frame (f) (setf (cw::group f) (make-instance 'cw::node-pd :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
+; ;|#
+; |#
+; ;==================================================================
+; 
+; #|
+; ;(defmethod cw-treeview::node-name ((n cw-treeview::node-pd)) (package-name (cw-treeview::sup n)))
+; ;(defmethod node-name ((n cw-treeview::node-pd)) (string-downcase (cw-treeview::sup n)))
+; ;(defmethod node-name ((n cw-treeview::node-pd)) (string-downcase (o:stg (car (cw-treeview::sup n)))))
+; 
+; 
+; ;(defmethod cw-treeview::children ((n cw-treeview::node-pd)) (gethash (cw-treeview::sup n) cw-treeview::*nodes*))
+; ;(defmethod cw-treeview::children ((n cw-treeview::node-pd)) (gethash (node-name (cw-treeview::sup n)) cw-treeview::*nodes*))
+; ;(defmethod cw-treeview::children ((n cw-treeview::node-pd)) (gethash n cw-treeview::*nodes*))
+; 
+; ;das geht noch am besten, aber falsch
+; (defmethod cw-treeview::children ((n cw-treeview::node-pd)) (symbol-tree (cw-treeview::sup n)))    ; <----
+; ;(defmethod cw-treeview::children ((n cw-treeview::node-pd)) (cdr (symbol-tree (cw-treeview::sup n))))    ; <----    anschauen
+; 
+; ;The name :FUNCTION does not designate any package
+; (defmethod cw-treeview::children ((n cw-treeview::node-pd)) (mapcar 'car (symbol-tree (cw-treeview::sup n))))  ; das geht schon fast <---
+; 
+; 
+; 
+; 
+; (defmethod cw-treeview::c-nodep ((n string)) (gethash n cw-treeview::*nodes*))
+; (defmethod cw-treeview::c-nodep ((n symbol)) (gethash n cw-treeview::*nodes*))
+; 
+; (defmethod cw-treeview::childnode-is-youngestsibling ((n string) ch) (and (cw-treeview::c-nodep n) (string= n (car (reverse ch)))))
+; (defmethod cw-treeview::childnode-is-youngestsibling ((n symbol) ch) (and (cw-treeview::c-nodep n) (equal n (car (reverse ch)))))
+; |#
+; 
+; ;#|
+; ;---------------------------
