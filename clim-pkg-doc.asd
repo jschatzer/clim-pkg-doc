@@ -6,6 +6,7 @@
   :author "<schatzer.johann@gmail>"
   :license "BSD Simplified"
   :depends-on (clim-widgets
+                alexandria
                manifest repl-utilities)
   :serial t
   :components ((:file "package")
