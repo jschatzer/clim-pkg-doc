@@ -1,12 +1,8 @@
 ;;;; clim-pkg-doc.lisp
-; ev use docparser, 15.6.15 <----
-;COM.INFORMATIMAGO.TOOLS.QUICKLISP    <------
-;COM.INFORMATIMAGO.LISPDOC
 
-#|
-;;;----------------------------------------------------------------
+#|--------------------------------------------------------------------
 some ideas, concepts and code from Peter Seibel's manifest package
-;;;----------------------------------------------------------------
+;;;-------------------------------------------------------------------
 ; this is form the manifest LIENSE file:
 
 Redistribution and use in source and binary forms, with or without
@@ -32,8 +28,7 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
 IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
-;;;----------------------------------------------------------------
-|# 
+--------------------------------------------------------------------|# 
 
 (in-package #:clim-pkg-doc)
 
@@ -62,48 +57,28 @@ CONFIGURE-POSSIBILITIES:
     (:p (loop for s being the present-symbols  of pkg collect s))
     (:a (loop for s being the symbols          of pkg collect s))))
 
-;remove brauchts nciht mehr
-#|
 ; ql-dist::name - see mail xach 8.6.2015 [quicklisp-projects] clim-pkg-doc (#927) -  that package is not available <--- ?
 ; #<QL-DIST:SYSTEM zsort / zsort-20120520-git / quicklisp 2015-06-08>) 
-(defun ql-system-name (ql-system) (#~s'\S+ (.\S+) .+'\1' (princ-to-string ql-system)))
-|#
+(defun ql-system-name (ql-system) (#~m'(?<= )\S+' (princ-to-string ql-system)))
 
 ;--------------------------------------------------------
 ; 2) sytem-categories, all 3 return upper-case-keywords
 ;--------------------------------------------------------
-;(defun current-packages () 
-;  (mapcar (lambda (x) (intern x :keyword)) 
-;          (cons "COMMON-LISP" (sort (remove "COMMON-LISP" (mapcar 'package-name (list-all-packages)) :test 'equal) 'string<))))
-
 ;current-systems
 (defun current-packages () 
   (cons "common-lisp" (sort (remove "common-lisp" (mapcar (alexandria:compose 'string-downcase 'package-name) (list-all-packages)) :test 'string=) 'string<)))
-
-
-;#|
-;#+quicklisp
-;(defun ql-systems () 
-;  (mapcar (lambda (x) (intern (string-upcase x) :keyword)) 
-;          (remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-system-name (ql:system-list))))) ; sorted "downcase", remove ca 500 system-test, 3016 -> 2453 
 
 #+quicklisp
 ;quicklisp-systems
 (defun ql-systems () 
   (remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-system-name (ql:system-list)))) ; sorted "downcase", remove ca 500 system-test, 3016 -> 2453 
-
-
-;#+quicklisp
-;(defun local-libs ()
-;  (if (probe-file #P"~/src/lisp/") (push #P"~/src/lisp/" ql:*local-project-directories*)) ; <--- comment out or adapt to your system -----
-;  (sort (mapcar (lambda (x) (intern (string-upcase x) :keyword)) (ql:list-local-systems)) 'string<))
+  ;(remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-dist::name (ql:system-list)))) ; sorted "downcase", remove ca 500 system-test, 3016 -> 2453 
 
 #+quicklisp
 ;local-systems
 (defun local-libs ()
   (if (probe-file #P"~/src/lisp/") (push #P"~/src/lisp/" ql:*local-project-directories*)) ; <--- comment out or adapt to your system -----
   (sort (ql:list-local-systems) 'string<))
-;|#
 
 ;--------------------------------------------------------
 ; 3) create a grouped tree from the symbols of a package, with editing of some packages, e.g. common-lisp, clim
@@ -143,17 +118,6 @@ CONFIGURE-POSSIBILITIES:
         for category = (sorted-symbols-in-a-category pkg what)
         when category collect (cons what category)))
 
-; (defun symbol-tree (p)
-;   "If pkg is clim, show colors in a separate group.
-;   If pkg is common-lisp, show special forms in a separate group."
-;   (case p (:clim (reverse (cons (clim-constants) (mapcar (lambda (x) (cons (car x) (mktree (cdr x)))) (cdr (reverse (symbol-groups p)))))))
-;           (:common-lisp (cons (spec-op) (mapcar (lambda (x) (cons (car x) (mktree (cdr x)))) (symbol-groups p))))
-;           (t (mapcar (lambda (x) (cons (car x) (mktree (cdr x)))) (symbol-groups p)))))
-
-;------------------
-;;;-- ev cons pkg name
-;(defun stringified-pkgsymbol-tree (p) ; ev 
-  ;(defun symbol-tree (p)
 (defun pkg-tree (p)
   "Group stringified pkg-symbols into a tree, and
   if pkg is clim, show colors in a separate group,
@@ -164,20 +128,6 @@ CONFIGURE-POSSIBILITIES:
                   (:clim (reverse (cons (clim-constants) (mapcar (lambda (x) (cons (car x) (mktree (cdr x)))) (cdr (reverse (symbol-groups p)))))))
                   (:common-lisp (cons (spec-op) (mapcar (lambda (x) (cons (car x) (mktree (cdr x)))) (symbol-groups p))))
                   (t (mapcar (lambda (x) (cons (car x) (mktree (cdr x)))) (symbol-groups p))))))))
-
-
-
-;(defun string-tree (p)
-;  (cw-test::sym2stg (symbol-tree p)))
-
-
-;(defun stgtree (pkg)
-;  (list (cons (string-downcase (package-name pkg)) (string-tree pkg))))
-
-
-;(defun cons-pkgname-to-pkgtree (p)
-;  (list (cons (string-downcase (package-name p)) (cw-test::sym2stg (symbol-tree p)))))
-
 
 ;--------------------------------------------------------
 ; 5) color lambda list
@@ -192,10 +142,7 @@ CONFIGURE-POSSIBILITIES:
 ;--------------------------------------------------------
 ; 6) create a package or system menu-list     ---> ev submenus (com. cl- ...)
 ;--------------------------------------------------------
-;welches wird gebraucht??
-(defmethod cw:key ((s symbol)) (#~s'([-./]).*'\1' (symbol-name s)))   ; cl- com. asdf/
 (defmethod cw:key ((s string)) (#~s'([-./]).*'\1' s))   ; cl- com. asdf/
-
 
 (defun create-menu (lst)
   "turn a list into a sorted numbered list"
@@ -220,9 +167,8 @@ CONFIGURE-POSSIBILITIES:
 ;--------------------------------------------------------
 ; 7) gui
 ;--------------------------------------------------------
-;create node- and leaf-classes, and corresponding inf method
-(cw:inf-meth-y
-  :nc node-pd)
+;create node- and leaf-classes, and corresponding methods
+(cw:inf-meth-y :nc node-pd)
 
 (define-application-frame pkg-doc (cw:tree)
  ((info :accessor info :initform ""))
@@ -232,221 +178,77 @@ CONFIGURE-POSSIBILITIES:
    (info-pane :application :display-function 'disp-info :incremental-redisplay t :end-of-page-action :allow))
   (:layouts (double (horizontally () tree-pane (make-pane 'clim-extensions:box-adjuster-gadget) info-pane))))
 
-(add-menu-item-to-command-table 'pkg-doc "textsize" :command 'txt-size) ;not o.k. <----
+(add-menu-item-to-command-table 'pkg-doc "textsize" :command 'txt-size) ;not working <---
 
+; (defun disp-info (f p) 
+;   (let ((sym (info *application-frame*))
+;         (pkg (cw::node-name (cw::group *application-frame*))))
+;     (dolist (what manifest::*categories*)
+;       (when (manifest::is sym what) 
+;         (flet ((doc-stg ()
+;                  (with-drawing-options (p :text-face :bold) 
+;                    (format p "~2%Documentation String:~%"))
+;                  (princ (or (manifest::docs-for sym what) "") p)))
+;           (cond ((equalp sym pkg) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
+;                 ((member what '(:function :macro :generic-function :slot-accessor)) 
+;                  (progn 
+;                    (with-drawing-options (p :text-face :bold) 
+;                      (format p "~a:~a~2%Argument List:~%" pkg sym))
+;                    (color-lambda p (repl-utilities:arglist sym))
+;                    (doc-stg)))
+;                 ((member what '(:variable :class :constant :condition)) (doc-stg))  ; cond noch zu testen
+;                 (t "")))))))
+
+;(find-symbol "COPY-FILE" "CL-FAD")  ;; geht
 (defun disp-info (f p) 
-  (let ((sym (info *application-frame*))
-        (pkg (cw::node-name (cw::group *application-frame*))))
-    (dolist (what manifest::*categories*)
-      (when (manifest::is sym what) 
-        (flet ((doc-stg ()
-                 (with-drawing-options (p :text-face :bold) 
-                   (format p "~2%Documentation String:~%"))
-                 (princ (or (manifest::docs-for sym what) "") p)))
-          (cond ((equalp sym pkg) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
-                ((member what '(:function :macro :generic-function :slot-accessor)) 
-                 (progn 
-                   (with-drawing-options (p :text-face :bold) 
-                     (format p "~a:~a~2%Argument List:~%" pkg sym))
-                   (color-lambda p (repl-utilities:arglist sym))
-                   (doc-stg)))
-                ((member what '(:variable :class :constant :condition)) (doc-stg))  ; cond noch zu testen
-                (t "")))))))
-
-(defun disp-info (f p) 
-;   (let* ((pkg (cw::node-name (cw::group *application-frame*)))
-; ;         (sym (find-symbol (string-upcase (info *application-frame*)) (find-package (package-name (string-upcase pkg))))))
-;          (sym (find-symbol (string-upcase (info *application-frame*)) (find-package (string-upcase pkg)))))
-
-  (let* ((pkg (string-upcase (cw::node-name (cw::group *application-frame*))))
-         (sym (find-symbol (string-upcase (info *application-frame*)) (find-package pkg))))
-
-;  (let* ((pkg (find-package (string-upcase (cw::node-name (cw::group *application-frame*)))))
-;         (sym (find-symbol (string-upcase (info *application-frame*)) pkg)))
-
-;#|
-    (format t "~&pkg s: ~s" pkg)
-    (format t "~&pkg a: ~a" pkg)
-
-;    (format t "~&sym: ~s~2%" sym)
-    (format t "~&symbol name s: ~s~2%" (symbol-name sym))
-    (format t "~&symbol name a: ~a~2%" (symbol-name sym))
-;|#
-
-    (dolist (what manifest::*categories*)
-      (when (manifest::is sym what) 
-        (flet ((doc-stg ()
-                 (with-drawing-options (p :text-face :bold) 
-                   (format p "~2%Documentation String:~%"))
-                 (princ (or (manifest::docs-for sym what) "no-doc-string") p)))
-          (cond ((equalp sym pkg) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
-                ((string= (symbol-name sym) pkg) 
-                 (princ "hallächen" p)
-                 (princ (manifest::readme-text (symbol-name sym)) p)   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
-                 (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
-
-                ;          (cond ((equalp (find-package (symbol-name sym)) (find-package pkg)) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
-
-                ((member what '(:function :macro :generic-function :slot-accessor)) 
-                 (progn 
-                   (with-drawing-options (p :text-face :bold) 
-                     (format p "~a:~a~2%Argument List:~%" pkg sym))
-                   (color-lambda p (repl-utilities:arglist sym))
-                   (doc-stg)))
-                ((member what '(:variable :class :constant :condition)) (doc-stg))  ; cond noch zu testen
-;                (t "")))))))
-                (t "Nichts da!!!")))))))
-
-
-(defun disp-info (f p) 
-  (let* ((pkg (string-upcase (cw::node-name (cw::group *application-frame*))))
-         (sym (find-symbol (string-upcase (info *application-frame*)) (find-package pkg))))
-#|
-    (format t "~&pkg s: ~s" pkg)
-    (format t "~&pkg a: ~a" pkg)
-    (format t "~&symbol name s: ~s~2%" (symbol-name sym))
-    (format t "~&symbol name a: ~a~2%" (symbol-name sym))
-|#
-    (dolist (what manifest::*categories*)
-      (when (manifest::is sym what) 
-        (flet ((doc-stg ()
-                 (with-drawing-options (p :text-face :bold) 
-                   (format p "~2%Documentation String:~%"))
-                 (princ (or (manifest::docs-for sym what) "no-doc-string") p)))
-          (cond ;((equalp sym pkg) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
-                ;((equalp (symbol-name sym) pkg) (princ (manifest::readme-text (string-downcase (symbol-name sym))) p))
-                 ((string= (symbol-name sym) pkg) 
-;                  (princ "hallächen" p)
-;                  (princ (manifest::readme-text (symbol-name sym)) p)   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
-                  (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
-                ((member what '(:function :macro :generic-function :slot-accessor)) 
-                 (progn 
-                   (with-drawing-options (p :text-face :bold) 
-                     (format p "~a:~a~2%Argument List:~%" pkg sym))
-                   (color-lambda p (repl-utilities:arglist sym))
-                   (doc-stg)))
-                ((member what '(:variable :class :constant :condition)) (doc-stg))  ; cond noch zu testen
-;                (t "")))))))
-                (t "No doc!!!")))))))
-
-(defun disp-info (f p) 
-  (let* ((pkg (string-upcase (cw::node-name (cw::group *application-frame*))))
-         (sym (find-symbol (string-upcase (info *application-frame*)) (find-package pkg))))
-#|
-    (format t "~&pkg s: ~s" pkg)
-    (format t "~&pkg a: ~a" pkg)
-    (format t "~&symbol name s: ~s~2%" (symbol-name sym))
-    (format t "~&symbol name a: ~a~2%" (symbol-name sym))
-|#
-    (dolist (what manifest::*categories*)
-      (when (manifest::is sym what) 
-        (flet ((doc-stg ()
-                 (with-drawing-options (p :text-face :bold) 
-                   (format p "~2%Documentation String:~%"))
-                 (princ (or (manifest::docs-for sym what) "no-doc-string") p)))
-          (cond ;((equalp sym pkg) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
-                ;((equalp (symbol-name sym) pkg) (princ (manifest::readme-text (string-downcase (symbol-name sym))) p))
-                 ((string= (symbol-name sym) pkg) 
-;                  (princ "hallächen" p)
-;                  (princ (manifest::readme-text (symbol-name sym)) p)   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
-                  (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
-                ((member what '(:function :macro :generic-function :slot-accessor)) 
-                 (progn 
-                   (with-drawing-options (p :text-face :bold) 
-                     (format p "~a:~a~2%Argument List:~%" pkg sym))
-                   (color-lambda p (repl-utilities:arglist sym))
-                   (doc-stg)))
-                ((member what '(:variable :class :constant :condition)) (doc-stg))  ; cond noch zu testen
-;                (t "")))))))
-                (t "No doc!!!")))))))
-
+  (let* ((pkg (cw:node-name (cw:group *application-frame*)))
+         (sym (find-symbol (string-upcase (info *application-frame*)) (string-upcase pkg))))
+;-test-
+    (format p "info app-frame: ~s" (info *application-frame*))
+    (format p "~&---pkg: ~s" pkg)
+    (format p "~&---sym: ~s~2%" sym)
+;------
+    (flet ((doc-stg (f)
+             (with-drawing-options (p :text-face :bold) (format p "~2%Documentation String:~%"))
+             (princ (or (manifest::docs-for sym f) "no-doc-string") p)))
+      (dolist (what manifest::*categories*)
+        (when (manifest::is sym what) 
+          (cond 
+            ((string= (info *application-frame*) pkg) (princ (manifest::readme-text sym) p))
+            ((member what '(:function :macro :generic-function :slot-accessor)) 
+             (with-drawing-options (p :text-face :bold) (format p "~@:(~a~):~a~2%Argument List:~%" pkg sym))  ; pkg to upper-case
+             (color-lambda p (repl-utilities:arglist sym))
+             (unless (null sym) (doc-stg what)))
+            ((member what '(:variable :class :constant :condition)) 
+             (unless (null sym) (doc-stg what)))
+            (t "there could be other documantation??")))))))
 
 (defun tview (tree key)
   (cw:t2h tree)
-;  (cw:tree-view (make-instance 'node-pd :sup key :disp-inf t) 'symbol 'pkg-doc :right 800))
   (cw:tree-view (make-instance 'node-pd :sup key :disp-inf t) 'string 'pkg-doc :right 800))
 
 ;;; commands --------------------------------------
-
-;(define-pkg-doc-command show-info ((item 'symbol :gesture :select))   
-;  (setf (info *application-frame*) item))
-
 (define-pkg-doc-command show-info ((item 'string :gesture :select))   
   (setf (info *application-frame*) item))
 
-#|
 ; menu-commands 
-(define-symbol-macro xxx
-  (with-application-frame (f) 
-    (setf (cw:group f) (make-instance 'node-pd :sup (string-downcase (package-name sys)) :disp-inf t)) (redisplay-frame-panes f :force-p t)))
-
-(define-pkg-doc-command (packages :menu t) ()
-  (let ((sys (menu-choose (create-menu (current-packages)) :printer 'print-numbered-pkg :n-columns 3)))
-    (cw:t2h (stgtree sys))
-    xxx))
-
-#+quicklisp
-(define-pkg-doc-command (quicklisp :menu t) ()
-  (let ((sys (menu-choose (create-menu (ql-systems)) :printer 'print-numbered-pkg :n-columns 3)))
-    (ql:quickload sys)
-    (if (find-package sys) (cw:t2h (stgtree sys)))
-    xxx))
-
-#+quicklisp
-(define-pkg-doc-command (local-projects :menu "LocalLibs") ()
-  (let ((sys (menu-choose (create-menu (local-libs)) :printer 'print-numbered-pkg :n-columns 3)))
-    (ql:quickload sys)
-    (if (find-package sys) (cw:t2h (stgtree sys)))
-    xxx))
-|#
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; menu-commands 
-(defmacro select-pkg (system-category) ;ev label arg
+(defmacro select-pkg (system-category)
   `(let ((sys (menu-choose (create-menu ,system-category) :printer 'print-numbered-pkg :n-columns 3)))
-     (ql:quickload sys)
-     ;(if (find-package sys) (cw:t2h (pkg-tree sys)))
-     (if (find-package (string-upcase sys)) (cw:t2h (pkg-tree (string-upcase sys))))
+     (unless (find-package (string-upcase sys)) (ql:quickload sys))
+     (cw:t2h (pkg-tree (string-upcase sys)))
      (with-application-frame (f) 
-       ;(setf (cw:group f) (make-instance 'node-pd :sup (string-downcase (package-name sys)) :disp-inf t)) (redisplay-frame-panes f :force-p t))))
        (setf (cw:group f) (make-instance 'node-pd :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
-
-
-;(define-pkg-doc-command (packages :menu t) ()
-;  (let ((sys (menu-choose (create-menu (current-packages)) :printer 'print-numbered-pkg :n-columns 3)))
-;    (cw:t2h (stgtree sys))
-;    xxx))
 
 (define-pkg-doc-command (packages :menu t) ()
   (select-pkg (current-packages)))  ; here quickload system is not cecessary, but doesn't harm
-
-;#+quicklisp
-;(define-pkg-doc-command (quicklisp :menu t) ()
-;  (let ((sys (menu-choose (create-menu (ql-systems)) :printer 'print-numbered-pkg :n-columns 3)))
-;    (ql:quickload sys)
-;    (if (find-package sys) (cw:t2h (stgtree sys)))
-;    xxx))
 
 #+quicklisp
 (define-pkg-doc-command (quicklisp :menu t) ()
   (select-pkg (ql-systems)))
 
-;#+quicklisp
-;(define-pkg-doc-command (local-projects :menu "LocalLibs") ()
-;  (let ((sys (menu-choose (create-menu (local-libs)) :printer 'print-numbered-pkg :n-columns 3)))
-;    (ql:quickload sys)
-;    (if (find-package sys) (cw:t2h (stgtree sys)))
-;    xxx))
-
 #+quicklisp
 (define-pkg-doc-command (local-projects :menu "LocalLibs") ()
   (select-pkg (local-libs)))
-
-
-;(define-pkg-doc-command (com-apropos :menu t) ()
-;  ;(setf (info *application-frame*) (apropos (accept 'string) (accept 'symbol :default nil))))
-;  (setf (info *application-frame*) (apropos (accept 'string) (accept 'symbol :default nil) 'external-only)))
 
 (define-pkg-doc-command (com-apropos :menu t) ()
   (setf (info *application-frame*) (apropos (accept 'string) (accept 'string :default nil) 'external-only)))
@@ -469,6 +271,7 @@ CONFIGURE-POSSIBILITIES:
 ;--------------------------------------------------------
 ; 8) main
 ;--------------------------------------------------------
+#|
 ;geht doch nicht richtig??
 ;geht prinzipiell, falls singel-process muß allerdings ein pkg wegen &optional angegeben werden; ev etwas anderes erdenken
 (defun pkg-doc% (pkg) (tview  (stgtree pkg) (string-downcase (package-name pkg))))
@@ -477,10 +280,11 @@ CONFIGURE-POSSIBILITIES:
   (if single-process
     (clim-sys:make-process (lambda () (pkg-doc% pkg)))
     (pkg-doc% pkg)))
+|#
 
 ;;; 
 (defun pkg-doc (&optional (pkg :clim)) 
- (tview  (stgtree pkg) (string-downcase (package-name pkg))))
+ (tview  (pkg-tree pkg) (string-downcase (package-name pkg))))
 
 
 ; ;---------------
