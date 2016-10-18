@@ -57,26 +57,26 @@ CONFIGURE-POSSIBILITIES:
     (:p (loop for s being the present-symbols  of pkg collect s))
     (:a (loop for s being the symbols          of pkg collect s))))
 
-; ql-dist::name - see mail xach 8.6.2015 [quicklisp-projects] clim-pkg-doc (#927) -  that package is not available <--- ?
+; ql-dist::name - mail xach 8.6.2015 [quicklisp-projects] clim-pkg-doc (#927) - that package is not available
 ; #<QL-DIST:SYSTEM zsort / zsort-20120520-git / quicklisp 2015-06-08>) 
 (defun ql-system-name (ql-system) (#~m'(?<= )\S+' (princ-to-string ql-system)))
 
 ;--------------------------------------------------------
 ; 2) sytem-categories, all 3 return upper-case-keywords
 ;--------------------------------------------------------
-;current-systems
-(defun current-packages () 
+;current-systemspackages
+(defun current-systems () 
   (cons "common-lisp" (sort (remove "common-lisp" (mapcar (alexandria:compose 'string-downcase 'package-name) (list-all-packages)) :test 'string=) 'string<)))
 
 #+quicklisp
-;quicklisp-systems
-(defun ql-systems () 
+;ql-systems
+(defun quicklisp-systems () 
   (remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-system-name (ql:system-list)))) ; sorted "downcase", remove ca 500 system-test, 3016 -> 2453 
   ;(remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-dist::name (ql:system-list)))) ; sorted "downcase", remove ca 500 system-test, 3016 -> 2453 
 
 #+quicklisp
-;local-systems
-(defun local-libs ()
+;local-systemslibs
+(defun local-systems ()
   (if (probe-file #P"~/src/lisp/") (push #P"~/src/lisp/" ql:*local-project-directories*)) ; <--- comment out or adapt to your system -----
   (sort (ql:list-local-systems) 'string<))
 
@@ -116,7 +116,9 @@ CONFIGURE-POSSIBILITIES:
   "group symbols into manifest::*categories*"
   (loop for what in manifest::*categories*
         for category = (sorted-symbols-in-a-category pkg what)
-        when category collect (cons what category)))
+        ;when category collect (cons what category)))
+        when category collect (cons (#~s'$':' (princ-to-string what)) category)))
+; asymbol-name  function: etc is seldom found in a package, function not so seldom, so clicking a category node does not show any "info"
 
 (defun pkg-tree (p)
   "Group stringified pkg-symbols into a tree, and
@@ -142,7 +144,9 @@ CONFIGURE-POSSIBILITIES:
 ;--------------------------------------------------------
 ; 6) create a package or system menu-list     ---> ev submenus (com. cl- ...)
 ;--------------------------------------------------------
+(defmethod cw:key ((s symbol)) (#~s'([-./]).*'\1'(symbol-name s)))   ; cl- com. asdf/
 (defmethod cw:key ((s string)) (#~s'([-./]).*'\1' s))   ; cl- com. asdf/
+;(#~m'[^./-]+[./-]' s) ;; ginge auch
 
 (defun create-menu (lst)
   "turn a list into a sorted numbered list"
@@ -168,7 +172,7 @@ CONFIGURE-POSSIBILITIES:
 ; 7) gui
 ;--------------------------------------------------------
 ;create node- and leaf-classes, and corresponding methods
-(cw:inf-meth-y :nc node-pd)
+(cw:inf-meth-y :nc node-pkg)
 
 (define-application-frame pkg-doc (cw:tree)
  ((info :accessor info :initform ""))
@@ -214,7 +218,8 @@ CONFIGURE-POSSIBILITIES:
       (dolist (what manifest::*categories*)
         (when (manifest::is sym what) 
           (cond 
-            ((string= (info *application-frame*) pkg) (princ (manifest::readme-text sym) p))
+            ;((string= (info *application-frame*) pkg) (princ (manifest::readme-text sym) p))
+            ((string= (info *application-frame*) pkg) (princ (manifest::readme-text pkg) p))
             ((member what '(:function :macro :generic-function :slot-accessor)) 
              (with-drawing-options (p :text-face :bold) (format p "~@:(~a~):~a~2%Argument List:~%" pkg sym))  ; pkg to upper-case
              (color-lambda p (repl-utilities:arglist sym))
@@ -223,9 +228,40 @@ CONFIGURE-POSSIBILITIES:
              (unless (null sym) (doc-stg what)))
             (t "there could be other documantation??")))))))
 
+(defun disp-info (f p) 
+  (let* ((pkg (cw:node-name (cw:group *application-frame*)))
+         (inf-ap-fr (info *application-frame*))
+         (sym (find-symbol (string-upcase inf-ap-fr) (string-upcase pkg))))
+
+#|-test-
+    (format p "info app-frame: ~s" inf-ap-fr)
+    (format p "~&---pkg: ~s" pkg)
+    (format p "~&---sym: ~s~2%" sym)
+|#;------
+    (flet ((doc-stg (f)
+             (with-drawing-options (p :text-face :bold) (format p "~2%Documentation String:~%"))
+             (princ (or (manifest::docs-for sym f) "no-doc-string") p)))
+      (dolist (what manifest::*categories*)
+        (when (manifest::is sym what) 
+          (cond 
+
+;            ((string= inf-ap-fr pkg) (format p "inf: ~a -- pkg: ~a" inf-ap-fr pkg))
+            ;((string= inf-ap-fr pkg) (princ (manifest::readme-text pkg) p))
+;            ((string= inf-ap-fr pkg) (format p "~a" (manifest::readme-text pkg)))
+            ((string= inf-ap-fr pkg) (format p "description asd-file~%info-app-frame: ~a -- pkg: ~a~2%----~2%README~2%~a" inf-ap-fr pkg (manifest::readme-text pkg)))
+
+            ((member what '(:function :macro :generic-function :slot-accessor)) 
+             (with-drawing-options (p :text-face :bold) (format p "~@:(~a~):~a~2%Argument List:~%" pkg sym))  ; pkg to upper-case
+             (color-lambda p (repl-utilities:arglist sym))
+             (unless (null sym) (doc-stg what)))
+            ((member what '(:variable :class :constant :condition)) 
+             (unless (null sym) (doc-stg what)))
+            (t "there could be other documantation??")))))))
+
+
 (defun tview (tree key)
   (cw:t2h tree)
-  (cw:tree-view (make-instance 'node-pd :sup key :disp-inf t) 'string 'pkg-doc :right 800))
+  (cw:tree-view (make-instance 'node-pkg :sup key :disp-inf t) 'string 'pkg-doc :right 800))
 
 ;;; commands --------------------------------------
 (define-pkg-doc-command show-info ((item 'string :gesture :select))   
@@ -237,25 +273,25 @@ CONFIGURE-POSSIBILITIES:
      (unless (find-package (string-upcase sys)) (ql:quickload sys))
      (cw:t2h (pkg-tree (string-upcase sys)))
      (with-application-frame (f) 
-       (setf (cw:group f) (make-instance 'node-pd :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
+       (setf (cw:group f) (make-instance 'node-pkg :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
 
 (define-pkg-doc-command (packages :menu t) ()
-  (select-pkg (current-packages)))  ; here quickload system is not cecessary, but doesn't harm
+  (select-pkg (current-systems)))
 
 #+quicklisp
 (define-pkg-doc-command (quicklisp :menu t) ()
-  (select-pkg (ql-systems)))
+  (select-pkg (quicklisp-systems)))
 
 #+quicklisp
 (define-pkg-doc-command (local-projects :menu "LocalLibs") ()
-  (select-pkg (local-libs)))
+  (select-pkg (local-systems)))
 
 (define-pkg-doc-command (com-apropos :menu t) ()
   (setf (info *application-frame*) (apropos (accept 'string) (accept 'string :default nil) 'external-only)))
 
 #+quicklisp
 (define-pkg-doc-command (com-ql-apropos :menu t) ()
-  (setf (info *application-frame*) (ql:system-apropos (accept 'string))))  ; geht <----
+  (setf (info *application-frame*) (ql:system-apropos (accept 'string))))
 
 (define-pkg-doc-command (help :menu t) ()
   (setf (info *application-frame*) (princ *help* *standard-input*)))
