@@ -172,7 +172,7 @@ CONFIGURE-POSSIBILITIES:
 ; 7) gui
 ;--------------------------------------------------------
 ;create node- and leaf-classes, and corresponding methods
-(cw:inf-meth-y :nc node-pkg)
+(cw:inf-meth :nc node-pkg)
 
 (define-application-frame pkg-doc (cw:tree)
  ((info :accessor info :initform ""))
