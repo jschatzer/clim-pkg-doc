@@ -122,7 +122,7 @@ CONFIGURE-POSSIBILITIES:
   "Group stringified pkg-symbols into a tree, and
   if pkg is clim, show colors in a separate group,
   if pkg is common-lisp, show special forms in a separate group."
-  (cw-test::sym2stg
+  (cw:sym2stg
     (list (cons p
                 (case p 
                   (:clim (reverse (cons (clim-constants) (mapcar (lambda (x) (cons (car x) (mktree (cdr x)))) (cdr (reverse (symbol-groups p)))))))
