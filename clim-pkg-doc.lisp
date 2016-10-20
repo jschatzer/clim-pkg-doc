@@ -186,7 +186,7 @@ CONFIGURE-POSSIBILITIES:
 
 ; (defun disp-info (f p) 
 ;   (let ((sym (info *application-frame*))
-;         (pkg (cw::node-name (cw::group *application-frame*))))
+;         (pkg (cw::item-name (cw::group *application-frame*))))
 ;     (dolist (what manifest::*categories*)
 ;       (when (manifest::is sym what) 
 ;         (flet ((doc-stg ()
@@ -205,7 +205,7 @@ CONFIGURE-POSSIBILITIES:
 
 ;(find-symbol "COPY-FILE" "CL-FAD")  ;; geht
 (defun disp-info (f p) 
-  (let* ((pkg (cw:node-name (cw:group *application-frame*)))
+  (let* ((pkg (cw:item-name (cw:group *application-frame*)))
          (sym (find-symbol (string-upcase (info *application-frame*)) (string-upcase pkg))))
 ;-test-
     (format p "info app-frame: ~s" (info *application-frame*))
@@ -229,7 +229,7 @@ CONFIGURE-POSSIBILITIES:
             (t "there could be other documantation??")))))))
 
 (defun disp-info (f p) 
-  (let* ((pkg (cw:node-name (cw:group *application-frame*)))
+  (let* ((pkg (cw:item-name (cw:group *application-frame*)))
          (inf-ap-fr (info *application-frame*))
          (sym (find-symbol (string-upcase inf-ap-fr) (string-upcase pkg))))
 
