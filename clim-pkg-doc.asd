@@ -7,10 +7,8 @@
   :license "BSD Simplified"
   :depends-on (clim-widgets
                 alexandria
-               manifest repl-utilities)
+                manifest repl-utilities)
   :serial t
   :components ((:file "package")
-               (:file "clim-pkg-doc")
-               ;#+quicklisp(:file "quicklisp")
-							 ))
+               (:file "clim-pkg-doc")))
 
