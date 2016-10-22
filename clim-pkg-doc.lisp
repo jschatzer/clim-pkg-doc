@@ -3,7 +3,7 @@
 #|--------------------------------------------------------------------
 some ideas, concepts and code from Peter Seibel's manifest package
 ;;;-------------------------------------------------------------------
-; this is form the manifest LIENSE file:
+; this is form the manifest LICENSE file:
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
