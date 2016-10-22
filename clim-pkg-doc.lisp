@@ -64,18 +64,15 @@ CONFIGURE-POSSIBILITIES:
 ;--------------------------------------------------------
 ; 2) sytem-categories, all 3 return upper-case-keywords
 ;--------------------------------------------------------
-;current-systemspackages
 (defun current-systems () 
   (cons "common-lisp" (sort (remove "common-lisp" (mapcar (alexandria:compose 'string-downcase 'package-name) (list-all-packages)) :test 'string=) 'string<)))
 
 #+quicklisp
-;ql-systems
 (defun quicklisp-systems () 
   (remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-system-name (ql:system-list)))) ; sorted "downcase", remove ca 500 system-test, 3016 -> 2453 
   ;(remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-dist::name (ql:system-list)))) ; sorted "downcase", remove ca 500 system-test, 3016 -> 2453 
 
 #+quicklisp
-;local-systemslibs
 (defun local-systems ()
   (if (probe-file #P"~/src/lisp/") (push #P"~/src/lisp/" ql:*local-project-directories*)) ; <--- comment out or adapt to your system -----
   (sort (ql:list-local-systems) 'string<))
@@ -118,7 +115,7 @@ CONFIGURE-POSSIBILITIES:
         for category = (sorted-symbols-in-a-category pkg what)
         ;when category collect (cons what category)))
         when category collect (cons (#~s'$':' (princ-to-string what)) category)))
-; asymbol-name  function: etc is seldom found in a package, function not so seldom, so clicking a category node does not show any "info"
+; a symbol-name  function: etc is seldom found in a package, function not so seldom, so clicking a category node does not show any "info"
 
 (defun pkg-tree (p)
   "Group stringified pkg-symbols into a tree, and
@@ -184,55 +181,10 @@ CONFIGURE-POSSIBILITIES:
 
 (add-menu-item-to-command-table 'pkg-doc "textsize" :command 'txt-size) ;not working <---
 
-; (defun disp-info (f p) 
-;   (let ((sym (info *application-frame*))
-;         (pkg (cw::item-name (cw::group *application-frame*))))
-;     (dolist (what manifest::*categories*)
-;       (when (manifest::is sym what) 
-;         (flet ((doc-stg ()
-;                  (with-drawing-options (p :text-face :bold) 
-;                    (format p "~2%Documentation String:~%"))
-;                  (princ (or (manifest::docs-for sym what) "") p)))
-;           (cond ((equalp sym pkg) (princ (manifest::readme-text sym) p))   ; u/o short pkg doc <--------   ev statt "" descrip in asd file verwenden
-;                 ((member what '(:function :macro :generic-function :slot-accessor)) 
-;                  (progn 
-;                    (with-drawing-options (p :text-face :bold) 
-;                      (format p "~a:~a~2%Argument List:~%" pkg sym))
-;                    (color-lambda p (repl-utilities:arglist sym))
-;                    (doc-stg)))
-;                 ((member what '(:variable :class :constant :condition)) (doc-stg))  ; cond noch zu testen
-;                 (t "")))))))
-
-;(find-symbol "COPY-FILE" "CL-FAD")  ;; geht
-(defun disp-info (f p) 
-  (let* ((pkg (cw:item-name (cw:group *application-frame*)))
-         (sym (find-symbol (string-upcase (info *application-frame*)) (string-upcase pkg))))
-;-test-
-    (format p "info app-frame: ~s" (info *application-frame*))
-    (format p "~&---pkg: ~s" pkg)
-    (format p "~&---sym: ~s~2%" sym)
-;------
-    (flet ((doc-stg (f)
-             (with-drawing-options (p :text-face :bold) (format p "~2%Documentation String:~%"))
-             (princ (or (manifest::docs-for sym f) "no-doc-string") p)))
-      (dolist (what manifest::*categories*)
-        (when (manifest::is sym what) 
-          (cond 
-            ;((string= (info *application-frame*) pkg) (princ (manifest::readme-text sym) p))
-            ((string= (info *application-frame*) pkg) (princ (manifest::readme-text pkg) p))
-            ((member what '(:function :macro :generic-function :slot-accessor)) 
-             (with-drawing-options (p :text-face :bold) (format p "~@:(~a~):~a~2%Argument List:~%" pkg sym))  ; pkg to upper-case
-             (color-lambda p (repl-utilities:arglist sym))
-             (unless (null sym) (doc-stg what)))
-            ((member what '(:variable :class :constant :condition)) 
-             (unless (null sym) (doc-stg what)))
-            (t "there could be other documantation??")))))))
-
 (defun disp-info (f p) 
   (let* ((pkg (cw:item-name (cw:group *application-frame*)))
          (inf-ap-fr (info *application-frame*))
          (sym (find-symbol (string-upcase inf-ap-fr) (string-upcase pkg))))
-
 #|-test-
     (format p "info app-frame: ~s" inf-ap-fr)
     (format p "~&---pkg: ~s" pkg)
@@ -245,9 +197,9 @@ CONFIGURE-POSSIBILITIES:
         (when (manifest::is sym what) 
           (cond 
 
-;            ((string= inf-ap-fr pkg) (format p "inf: ~a -- pkg: ~a" inf-ap-fr pkg))
+            ;((string= inf-ap-fr pkg) (format p "inf: ~a -- pkg: ~a" inf-ap-fr pkg))
             ;((string= inf-ap-fr pkg) (princ (manifest::readme-text pkg) p))
-;            ((string= inf-ap-fr pkg) (format p "~a" (manifest::readme-text pkg)))
+            ;((string= inf-ap-fr pkg) (format p "~a" (manifest::readme-text pkg)))
             ((string= inf-ap-fr pkg) (format p "description asd-file~%info-app-frame: ~a -- pkg: ~a~2%----~2%README~2%~a" inf-ap-fr pkg (manifest::readme-text pkg)))
 
             ((member what '(:function :macro :generic-function :slot-accessor)) 
