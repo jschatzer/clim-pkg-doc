@@ -219,13 +219,25 @@ CONFIGURE-POSSIBILITIES:
 (define-pkg-doc-command show-info ((item 'string :gesture :select))   
   (setf (info *application-frame*) item))
 
+
 ; menu-commands 
+;;; mail xach 26.10.16
+#|
 (defmacro select-pkg (system-category)
   `(let ((sys (menu-choose (create-menu ,system-category) :printer 'print-numbered-pkg :n-columns 3)))
      (unless (find-package (string-upcase sys)) (ql:quickload sys))
      (cw:t2h (pkg-tree (string-upcase sys)))
      (with-application-frame (f) 
        (setf (cw:group f) (make-instance 'node-pkg :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
+|#
+
+(defmacro select-pkg (system-category)
+  `(let ((sys (menu-choose (create-menu ,system-category) :printer 'print-numbered-pkg :n-columns 3)))
+     #+quicklisp(unless (find-package (string-upcase sys)) (ql:quickload sys))
+     (cw:t2h (pkg-tree (string-upcase sys)))
+     (with-application-frame (f) 
+       (setf (cw:group f) (make-instance 'node-pkg :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
+
 
 (define-pkg-doc-command (packages :menu t) ()
   (select-pkg (current-systems)))
