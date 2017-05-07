@@ -31,7 +31,6 @@ POSSIBILITY OF SUCH DAMAGE.
 --------------------------------------------------------------------|# 
 
 (in-package #:clim-pkg-doc)
-
 ;--------------------------------------------------------
 ; 1) helper
 ;--------------------------------------------------------
@@ -48,6 +47,74 @@ CONFIGURE-POSSIBILITIES:
 -----------------------------------------------------------------
 ")
 
+;1) cl+ssl.asd hat 2x defpackage vor defsystem -- loop
+;2) alexandria.0.dev    pathname systemfile
+(defun asdf-description (f)
+  (with-open-file (i f)
+    (loop 
+      (let ((asd (read i nil nil)))
+      (if (#~m'defsystem'i (lol:mkstr (car asd)))
+        (return (list (getf (cddr asd) :description) (getf (cddr asd) :long-description))))))))
+
+;-------
+(defun color-info (s a1 a2 a3)
+(with-drawing-options (s :ink +red+ :text-face :bold) (format s 
+"
+-------------------------
+ ASDF Description
+-------------------------"))
+(with-drawing-options (s :text-face :bold) (format s "~&SHORT: ")) (format s "~a" a1)
+(with-drawing-options (s :text-face :bold) (format s "~2&LONG: ")) (format s "~a" a2)
+(with-drawing-options (s :ink +red+ :text-face :bold) (format s 
+"~&
+-------------------------
+ README
+-------------------------"))
+ (format s "~&~a" a3))
+
+;-------
+
+; ql-dist::name - mail xach 8.6.2015 [quicklisp-projects] clim-pkg-doc (#927) - that package is not available
+; #<QL-DIST:SYSTEM zsort / zsort-20120520-git / quicklisp 2015-06-08>) 
+(defun ql-system-name (ql-system) (#~m'(?<= )\S+' (princ-to-string ql-system)))
+
+; ev work with pkg-symbols <--- 22.4.17, ev zuviel mit strigs siehe unten
+;(defun ql-system (ql-system) (alexandria.0.dev:make-keyword (string-upcase (#~m'(?<= )\S+' (princ-to-string ql-system)))))
+
+
+;--------------------------------------------------------
+; 2) sytem-categories
+;--------------------------------------------------------
+(defun current-systems () 
+  (cons "common-lisp" (sort (remove "common-lisp" (mapcar (alexandria:compose 'string-downcase 'package-name) (list-all-packages)) :test 'string=) 'string<)))
+
+#+quicklisp
+(defun quicklisp-systems () 
+  (remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-system-name (ql:system-list)))) ;remove system-test
+  ;(remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-dist::name (ql:system-list))))
+
+#+quicklisp
+(defun local-systems ()
+  (if (probe-file #P"~/src/lisp/") (push #P"~/src/lisp/" ql:*local-project-directories*)) ; <--- comment out or adapt to your system -----
+  (sort (ql:list-local-systems) 'string<))
+
+;--------------------------------------------------------
+; 3) create a hierachical tree from the symbols of a package; with editing of some packages, e.g. common-lisp, clim
+;--------------------------------------------------------
+; ev rename:
+; symbol-tree, "the symbols of a package)
+; pkg-tree  "the systems: quicklisp, local, loaded"
+
+;--------------------------------------------------------
+; -1) group symbols into manifest::*categories*; i.e. group the symbols of a package into functions, macros, variables ... 
+;    idea/concept/code from "manifest" quicklisp package
+;--------------------------------------------------------
+(defun symbol-groups (pkg)
+  "group symbols into manifest::*categories*"
+  (loop for what in manifest::*categories*
+        for category = (sorted-symbols-in-a-category pkg what)
+        when category collect (cons (#~s'$':' (princ-to-string what)) category)))
+
 (defvar *st* :e) ;symbol-type :e external :a available :p present
 
 (defun pkg-symbols (pkg &optional (stype :e))
@@ -57,49 +124,8 @@ CONFIGURE-POSSIBILITIES:
     (:p (loop for s being the present-symbols  of pkg collect s))
     (:a (loop for s being the symbols          of pkg collect s))))
 
-; ql-dist::name - mail xach 8.6.2015 [quicklisp-projects] clim-pkg-doc (#927) - that package is not available
-; #<QL-DIST:SYSTEM zsort / zsort-20120520-git / quicklisp 2015-06-08>) 
-(defun ql-system-name (ql-system) (#~m'(?<= )\S+' (princ-to-string ql-system)))
-
-;--------------------------------------------------------
-; 2) sytem-categories, all 3 return upper-case-keywords
-;--------------------------------------------------------
-(defun current-systems () 
-  (cons "common-lisp" (sort (remove "common-lisp" (mapcar (alexandria:compose 'string-downcase 'package-name) (list-all-packages)) :test 'string=) 'string<)))
-
-#+quicklisp
-(defun quicklisp-systems () 
-  (remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-system-name (ql:system-list)))) ; sorted "downcase", remove ca 500 system-test, 3016 -> 2453 
-  ;(remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-dist::name (ql:system-list)))) ; sorted "downcase", remove ca 500 system-test, 3016 -> 2453 
-
-#+quicklisp
-(defun local-systems ()
-  (if (probe-file #P"~/src/lisp/") (push #P"~/src/lisp/" ql:*local-project-directories*)) ; <--- comment out or adapt to your system -----
-  (sort (ql:list-local-systems) 'string<))
-
-;--------------------------------------------------------
-; 3) create a grouped tree from the symbols of a package, with editing of some packages, e.g. common-lisp, clim
-;--------------------------------------------------------
-(defun mktree (l) (mapcar (lambda (x) (if (null (cdr x)) x (cons (cw:key (car x)) (mapcar #'list x)))) (cw:pack l))) ; ev recursive for all -
-
-;;; if package is CLIM: 1) remove all constants, 2) then add them again as a finished, i.e. sorted, group with a sorted color-subgroup  
 (defun clim-constant-p (s) (if (or (constantp s) (#~m'^\+.+\+$' (symbol-name s))) s))
 
-(defun clim-constants ()
-  "divide clim-constants into colors and other constants" ; color-names are mixed case strings, without + or -, e.g. "antique white"
-  (let* ((clim-color-constants (mapcar (lambda (x) (find-symbol (string-upcase (#~s'(.*)'+\1+' (#~s' '-'g x))) :clim)) (mapcar #'fourth clim-internals::*xpm-x11-colors*))) ; see also cl-colors pkg
-         (clim-non-color-constants (remove-if-not #'clim-constant-p (set-difference (pkg-symbols :clim *st*) clim-color-constants)))
-         (o (sort clim-non-color-constants #'string<))     ;other constants
-         (c (sort clim-color-constants #'nsort:nstring<))) ;color-name constants
-    (cons :constant (cons (cons :color-names (mktree c)) (mktree o)))))
-
-;;; if package is COMMON-LISP: 1) remove all special-operators, 2) then add them again as a finished, i.e. sorted, group
-(defun spec-op () (cons :special-operator (mktree (sort (remove-if-not #'special-operator-p (pkg-symbols :common-lisp *st*)) #'string<))))
-
-;--------------------------------------------------------
-; 4) group symbols into manifest::*categories*
-;    idea/concept/code from "manifest" quicklisp package
-;--------------------------------------------------------
 (defun sorted-symbols-in-a-category (pkg what)
   "return a sorted list of all symbols in a category"
   (sort (loop for sym in 
@@ -109,28 +135,139 @@ CONFIGURE-POSSIBILITIES:
                 (t (pkg-symbols pkg *st*))) 
               when (manifest::is sym what) collect sym) #'nsort:nstring<))
 
-(defun symbol-groups (pkg)
-  "group symbols into manifest::*categories*"
-  (loop for what in manifest::*categories*
-        for category = (sorted-symbols-in-a-category pkg what)
-        ;when category collect (cons what category)))
-        when category collect (cons (#~s'$':' (princ-to-string what)) category)))
-; a symbol-name  function: etc is seldom found in a package, function not so seldom, so clicking a category node does not show any "info"
+;--------------------------------------------------------
+; -2) edit some package, for now common-lisp, clim
+;--------------------------------------------------------
+;;; if package is CLIM: 1) remove all constants, 2) then add them again as a finished, i.e. sorted, group with a sorted color-subgroup  
+(defun clim-constant-p (s) (if (or (constantp s) (#~m'^\+.+\+$' (symbol-name s))) s))
 
+(defun clim-constants ()
+  "divide clim-constants into colors and other constants" ; color-names are mixed case strings, without + or -, e.g. "antique white"
+  (let* ((clim-color-constants (mapcar (lambda (x) (find-symbol (string-upcase (#~s'(.*)'+\1+' (#~s' '-'g x))) :clim)) (mapcar #'fourth clim-internals::*xpm-x11-colors*))) ; see also cl-colors pkg
+         (clim-non-color-constants (remove-if-not #'clim-constant-p (set-difference (pkg-symbols :clim *st*) clim-color-constants)))
+         (o (sort clim-non-color-constants #'string<))     ;other constants
+         (c (sort clim-color-constants #'nsort:nstring<))) ;color-name constants
+    ;(cons "constant:" (cons (cons :color-names (mktree c)) (mktree o)))))  ; 14.12.16 ist einheitlicher <----
+    (cons "constant:" (cons (cons :color-names (pack c)) (pack o)))))  ; 14.12.16 ist einheitlicher <----
+
+;;; if package is COMMON LISP remove special operatores and add them as a separate group.
+(defun spec-op () (cons "special-operator:" (sort (remove-if-not #'special-operator-p (pkg-symbols :common-lisp *st*)) #'string<)))
+
+;----------------------------------
+; -3) create hierarchy by symbolname
+;----------------------------------
+
+;(parts 'a-b-c) -> (A- B- C)
+(defmethod parts ((x symbol))
+  (mapcar 'intern
+          (#~m'[^-]+-?'g (symbol-name x))))
+
+(defmethod parts ((x string))
+  (#~m'[^-]+-?'g x))
+
+;;;;;;3.5.17
+;(parts "a-bc-def-g") -> ("a-" "bc-" "def-" "g")
+;(parts "a.bc.def.g") -> ("a." "bc." "def." "g")
+;(parts "a/bc/def/g") -> ("a/" "bc/" "def/" "g")
+;#|
+;damit geht common lisp nicht,, wegen / // /// ??  <----
+(defmethod parts ((x string))
+  (#~m'[^-./]+(-|\.|/)?'g x))
+;|#
+
+;damit geht common lisp, ist etwas langsam <----
+; use/test m'^/' for better performance
+(defmethod parts ((x string))
+  (pre:ifmatch (#~m'^(/+)$' x)
+    (list $1)
+    (#~m'[^-./]+(-|\.|/)?'g x)))
+
+;---------------------------
+;(key 'a-b-c)  ; "A-"
+;(key 'a-b-c 1) ;"A-B-"
+(defun key (s &optional (i 0))
+ (#~s' ''g (stdutils:list-to-delimited-string (reverse (key% s i))))) 
+
+;(key% 'a-b-c 1) ; (B- A-)
+(defun key% (s &optional (i 0))
+  "key ~ header"
+  (cond ((zerop i) (list (nth i (parts s))))
+        (t (cons 
+             (nth i (parts s))
+             (key% s (1- i))))))
+
+
+(defun r-add-header (l ind) ; recursive-add-header list index
+  (cons (key (car l) ind) (pack (reverse l) (1+ ind))))
+
+(defun pack (l &optional (i 0) v)
+  (cond ((null l) (if (= 1 (length v)) v (list (r-add-header v i))))
+        ((null v) (pack (cdr l) i (list (car l))))
+        ((equal (key (car v) i) (key (car l) i)) (pack (cdr l) i (push (car l) v)))
+        (t (cons (if (= 1 (length v))
+                   (car v)
+                   (r-add-header v i))
+                 (pack (cdr l) i (list (car l)))))))
+
+;--- 6.5.17--- remove empty bags
+;geht besser, richtig??
+(defun fn (l)
+  (cond
+    ((null l) nil)
+    ((atom l) l)
+;    ((and (consp (car l)) (notany #'consp (car l))) (car l))
+    ((and (consp (car l)) (notany #'consp (car l))) (cons (car l) (fn (cdr l))))
+    ((and (= 2 (length l)) (atom (car l)) (consp (cadr l))) (fn (cadr l)))
+    (t (cons (fn (car l)) (fn (cdr l))))))
+
+(defun remove-empty-bags (l)
+  (fn l))
+;------------------------------
+
+; 16.4.17
+;geht ~gut, special operater multiple values noch nicht
+(defun sym-gr (p)
+  (case p 
+    (:clim (substitute (mapcar 'cw::sym2stg (clim-constants)) '("constant:" NIL) (mapcar 'pack (mapcar 'cw::sym2stg (symbol-groups p))) :test 'equal))
+    (:common-lisp (cons (pack (mapcar 'cw::sym2stg (spec-op))) (mapcar 'pack (mapcar 'cw::sym2stg (symbol-groups p)))))
+    (t (mapcar 'pack (mapcar 'cw::sym2stg (symbol-groups p))))))
+
+;---------------------------
+(defun insert-what (l)
+   (mapcar 'insert-what%% l))
+
+;(insert-what% 'macro- 'abc-def-g)
+(defun insert-what% (w s) ;what symbol 
+  (stdutils:list-to-delimited-string 
+    (cons w (parts s)) ""))
+
+(defun insert-what%% (l)
+  (let ((w (#~s'$'-' (car l))))
+    (cons w
+      (labels ((rec (y)
+                 (cond ((null y) nil)
+                       ((atom y) (insert-what% w y))
+                       (t (cons (rec (car y)) (rec (cdr y)))))))
+        (rec (cdr l))))))
+
+;---------------------------
+#|
 (defun pkg-tree (p)
-  "Group stringified pkg-symbols into a tree, and
-  if pkg is clim, show colors in a separate group,
-  if pkg is common-lisp, show special forms in a separate group."
-  (cw:sym2stg
-    (list (cons p
-                (case p 
-                  (:clim (reverse (cons (clim-constants) (mapcar (lambda (x) (cons (car x) (mktree (cdr x)))) (cdr (reverse (symbol-groups p)))))))
-                  (:common-lisp (cons (spec-op) (mapcar (lambda (x) (cons (car x) (mktree (cdr x)))) (symbol-groups p))))
-                  (t (mapcar (lambda (x) (cons (car x) (mktree (cdr x)))) (symbol-groups p))))))))
+  (cons (symbol-name p)
+        (insert-what (sym-gr p))))
+|#
+
+;geht gut, 6.5.15
+(defun pkg-tree (p)
+  (remove-empty-bags
+    (cons (symbol-name p)
+          (insert-what (sym-gr p)))))
+
 
 ;--------------------------------------------------------
-; 5) color lambda list
+; 4) GUI helper
 ;--------------------------------------------------------
+; -1)color lambda list
 (defun color-lambda (s l)
   (mapc (lambda (x)
           (if (#~m'^&' x)
@@ -139,27 +276,30 @@ CONFIGURE-POSSIBILITIES:
         (ppcre:split "(&[^ )]+)" (princ-to-string l) :with-registers-p t)))
 
 ;--------------------------------------------------------
-; 6) create a package or system menu-list     ---> ev submenus (com. cl- ...)
+; -2) create a package or system menu-list -- with submenus: com. cl- asdf/ ...
 ;--------------------------------------------------------
-(defmethod cw:key ((s symbol)) (#~s'([-./]).*'\1'(symbol-name s)))   ; cl- com. asdf/
-(defmethod cw:key ((s string)) (#~s'([-./]).*'\1' s))   ; cl- com. asdf/
-;(#~m'[^./-]+[./-]' s) ;; ginge auch
-
-(defun create-menu (lst)
+#|
+(defun create-menu (l)
   "turn a list into a sorted numbered list"
-  (let ((n 0))
-    (mapcar 
-      (lambda (x) 
-        (if (null (cdr x)) 
-          (list (lol:mkstr (incf n) #\space (car x)) :value (car x))
-          (let ((m 0))
-            (list (lol:mkstr (incf n) #\space (cw:key (car x)))
-                  :items (mapcar
-                           (lambda (y) 
-                             (list (lol:mkstr (incf m) #\space y) :value y))
-                           x)))))
-      (cw:pack lst))))
+  (cm (pack l)))
+|#
 
+;6.5.17
+(defun create-menu (l)
+  "turn a list into a sorted numbered list"
+  (cm 
+    (remove-empty-bags (pack l))))
+
+(defun cm (l &aux (n 0)) ;create-menue
+  "insert :items and :value into a tree to create a clim-menu"
+    (mapcar (lambda (x)
+              (if (atom x)
+                (list (lol:mkstr (incf n) #\space x) :value x)
+                (cons (lol:mkstr (incf n) #\space (car x)) (cons :items
+                                                             (list (cm (cdr x)))))))
+            l))
+
+;------------------
 (defun print-numbered-pkg (item strm)
   (if (#~m'[-./]$' (car item))
     (with-drawing-options (strm :ink +red+ :text-face :bold) (princ (string-downcase (car item)) strm))
@@ -169,7 +309,9 @@ CONFIGURE-POSSIBILITIES:
 ; 7) gui
 ;--------------------------------------------------------
 ;create node- and leaf-classes, and corresponding methods
-(cw:inf-meth :nc node-pkg)
+(cw:inf-meth :nc node-pkg
+             :nn (let ((n (cw:sup cw:n))) (if (#~m':-$' n) (#~s'-$'' n) (#~s'.+:-'' n)))
+             :ln (#~s'.+:-'' (cw:sup cw:n)))
 
 (define-application-frame pkg-doc (cw:tree)
  ((info :accessor info :initform ""))
@@ -181,6 +323,7 @@ CONFIGURE-POSSIBILITIES:
 
 (add-menu-item-to-command-table 'pkg-doc "textsize" :command 'txt-size) ;not working <---
 
+
 (defun disp-info (f p) 
   (let* ((pkg (cw:item-name (cw:group *application-frame*)))
          (inf-ap-fr (info *application-frame*))
@@ -189,6 +332,7 @@ CONFIGURE-POSSIBILITIES:
     (format p "info app-frame: ~s" inf-ap-fr)
     (format p "~&---pkg: ~s" pkg)
     (format p "~&---sym: ~s~2%" sym)
+    ;insert path <---
 |#;------
     (flet ((doc-stg (f)
              (with-drawing-options (p :text-face :bold) (format p "~2%Documentation String:~%"))
@@ -196,57 +340,45 @@ CONFIGURE-POSSIBILITIES:
       (dolist (what manifest::*categories*)
         (when (manifest::is sym what) 
           (cond 
-
-            ;((string= inf-ap-fr pkg) (format p "inf: ~a -- pkg: ~a" inf-ap-fr pkg))
-            ;((string= inf-ap-fr pkg) (princ (manifest::readme-text pkg) p))
-            ;((string= inf-ap-fr pkg) (format p "~a" (manifest::readme-text pkg)))
-            ((string= inf-ap-fr pkg) (format p "description asd-file~%info-app-frame: ~a -- pkg: ~a~2%----~2%README~2%~a" inf-ap-fr pkg (manifest::readme-text pkg)))
-
+            ((string= inf-ap-fr pkg) 
+             (color-info p
+               (or (car (asdf-description (ql-dist:find-asdf-system-file (alexandria:make-keyword pkg)))))
+               (or (cadr (asdf-description (ql-dist:find-asdf-system-file (alexandria:make-keyword pkg)))))
+               (manifest::readme-text (alexandria:make-keyword pkg))))
             ((member what '(:function :macro :generic-function :slot-accessor)) 
              (with-drawing-options (p :text-face :bold) (format p "~@:(~a~):~a~2%Argument List:~%" pkg sym))  ; pkg to upper-case
              (color-lambda p (repl-utilities:arglist sym))
              (unless (null sym) (doc-stg what)))
             ((member what '(:variable :class :constant :condition)) 
+;(with-drawing-options (p :text-face :bold) (format p "~@:(~a~):~a~%~a" pkg sym what))   ; <----- 13.3.17  ev überlegen
+;(format p "~a" what)
              (unless (null sym) (doc-stg what)))
             (t "there could be other documantation??")))))))
 
-
 (defun tview (tree key)
-  (cw:t2h tree)
+  (cw-utils::t2h-r tree)
   (cw:tree-view (make-instance 'node-pkg :sup key :disp-inf t) 'string 'pkg-doc :right 800))
 
 ;;; commands --------------------------------------
 (define-pkg-doc-command show-info ((item 'string :gesture :select))   
   (setf (info *application-frame*) item))
 
-
-; menu-commands 
-;;; mail xach 26.10.16
-#|
-(defmacro select-pkg (system-category)
-  `(let ((sys (menu-choose (create-menu ,system-category) :printer 'print-numbered-pkg :n-columns 3)))
-     (unless (find-package (string-upcase sys)) (ql:quickload sys))
-     (cw:t2h (pkg-tree (string-upcase sys)))
-     (with-application-frame (f) 
-       (setf (cw:group f) (make-instance 'node-pkg :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
-|#
-
 (defmacro select-pkg (system-category)
   `(let ((sys (menu-choose (create-menu ,system-category) :printer 'print-numbered-pkg :n-columns 3)))
      #+quicklisp(unless (find-package (string-upcase sys)) (ql:quickload sys))
-     (cw:t2h (pkg-tree (string-upcase sys)))
+     (clrhash cw:nodes)
+     (cw-utils::t2h-r (pkg-tree (alexandria.0.dev:make-keyword (string-upcase sys))))
      (with-application-frame (f) 
-       (setf (cw:group f) (make-instance 'node-pkg :sup sys :disp-inf t)) (redisplay-frame-panes f :force-p t))))
-
+       (setf (cw:group f) (make-instance 'node-pkg :sup (string-upcase sys) :disp-inf t)) (redisplay-frame-panes f :force-p t))))
 
 (define-pkg-doc-command (packages :menu t) ()
   (select-pkg (current-systems)))
 
-#+quicklisp
+;#+quicklisp
 (define-pkg-doc-command (quicklisp :menu t) ()
   (select-pkg (quicklisp-systems)))
 
-#+quicklisp
+;#+quicklisp
 (define-pkg-doc-command (local-projects :menu "LocalLibs") ()
   (select-pkg (local-systems)))
 
@@ -271,34 +403,7 @@ CONFIGURE-POSSIBILITIES:
 ;--------------------------------------------------------
 ; 8) main
 ;--------------------------------------------------------
-#|
-;geht doch nicht richtig??
-;geht prinzipiell, falls singel-process muß allerdings ein pkg wegen &optional angegeben werden; ev etwas anderes erdenken
-(defun pkg-doc% (pkg) (tview  (stgtree pkg) (string-downcase (package-name pkg))))
-
-(defun pkg-doc (&optional (pkg :clim) &key single-process) 
-  (if single-process
-    (clim-sys:make-process (lambda () (pkg-doc% pkg)))
-    (pkg-doc% pkg)))
-|#
-
-;;; 
 (defun pkg-doc (&optional (pkg :clim)) 
- (tview  (pkg-tree pkg) (string-downcase (package-name pkg))))
+ (tview  (pkg-tree pkg) (package-name pkg)))
 
-
-; ;---------------
-; (defun pkg-doc% (&optional (pkg :clim)) (tview  (stgtree pkg) (string-downcase (package-name pkg))))
-; 
-; (defun pkg-doc (&optional (pkg :clim) &key single-process) 
-;   (if single-process
-;     (clim-sys:make-process (lambda () (pkg-doc% pkg)))
-;     (pkg-doc% pkg)))
-; 
-
-; with opt oder keyword
-;(bordeaux-threads:make-thread 'clim-pkg-doc:pkg-doc)
-;:vs 
-(defun pd () (clim-sys:make-process #'clim-pkg-doc:pkg-doc))
-
-
+(defun pd () (clim-sys:make-process #'pkg-doc))
