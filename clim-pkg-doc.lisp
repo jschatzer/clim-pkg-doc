@@ -374,11 +374,11 @@ CONFIGURE-POSSIBILITIES:
 (define-pkg-doc-command (packages :menu t) ()
   (select-pkg (current-systems)))
 
-;#+quicklisp
+#+quicklisp
 (define-pkg-doc-command (quicklisp :menu t) ()
   (select-pkg (quicklisp-systems)))
 
-;#+quicklisp
+#+quicklisp
 (define-pkg-doc-command (local-projects :menu "LocalLibs") ()
   (select-pkg (local-systems)))
 
