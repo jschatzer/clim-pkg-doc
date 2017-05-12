@@ -7,6 +7,7 @@
   :license "BSD Simplified"
   :depends-on (clim-widgets
                 alexandria
+;                onlisp  ;for testing  <-- remove
                 stdutils
                 manifest repl-utilities)
   :serial t
