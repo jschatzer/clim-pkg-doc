@@ -50,15 +50,32 @@ CONFIGURE-POSSIBILITIES:
 
 ;1) cl+ssl.asd hat 2x defpackage vor defsystem -- loop
 ;2) alexandria.0.dev    pathname systemfile
+#|
 (defun asdf-description (f)
+  "return list of short and long asdf-description"
   (with-open-file (i f)
     (loop 
       (let ((asd (read i nil nil)))
       (if (#~m'defsystem'i (lol:mkstr (car asd)))
         (return (list (getf (cddr asd) :description) (getf (cddr asd) :long-description))))))))
+|#
+
+(defun asdf-description (sys)
+  (list
+    (asdf/system:system-description (asdf/system:find-system sys))
+    (asdf/system:system-long-description (asdf/system:find-system sys))))
 
 ;--------------------------------
-(defun color-info (s nr a1 a2 a3) 
+;(defun color-info (s nr a1 a2 a3) 
+(defun color-info (s pkg) 
+  (let 
+    ((nr (length (pkg-symbols pkg)))
+     (a1 (car (asdf-description pkg)))
+     (a2 (cadr (asdf-description pkg)))
+     (a3 (manifest::readme-text pkg)))
+
+
+
   (with-drawing-options (s :ink +red+) (format s "~a " nr)) (format s "external-symbols") ; nr ext symbols
   (with-drawing-options (s :ink +red+ :text-face :bold) (format s 
 "
@@ -73,6 +90,7 @@ CONFIGURE-POSSIBILITIES:
  README
 -------------------------"))
   (format s "~&~a" a3))
+  )
 
 ;--------------------------------
 ; #<QL-DIST:SYSTEM zsort / zsort-20120520-git / quicklisp 2015-06-08>) 
@@ -251,28 +269,81 @@ CONFIGURE-POSSIBILITIES:
 
 (add-menu-item-to-command-table 'pkg-doc "textsize" :command 'txt-size) ;not working <---
 
+;-------------------------------------------------------------------
+;   (defun disp-info (f p) 
+;     (let* ((pkg (cw:item-name (cw:group *application-frame*)))
+;            (inf-ap-fr (info *application-frame*))
+;            (sym (find-symbol (string-upcase inf-ap-fr) (string-upcase pkg))))
+;   ;#|-test-
+;       (format p "~&---info app-frame: ~s" inf-ap-fr)
+;       (format p "~&---pkg: ~s" pkg)
+;       (format p "~&---sym: ~s" sym)
+;       ;insert path <---
+;       (format p "~&---path: ~s~2%" (ql-dist:find-asdf-system-file (alexandria:make-keyword pkg)))
+;   ;|#
+;       (flet ((doc-stg (f)
+;                (with-drawing-options (p :text-face :bold) (format p "~2%Documentation String:~%"))
+;                (princ (or (manifest::docs-for sym f) "no-doc-string") p)))
+;         (dolist (what manifest::*categories*)
+;           (when (manifest::is sym what) 
+;             (cond 
+;               ((string= inf-ap-fr pkg) 
+;                (color-info p
+;                  (length (pkg-symbols pkg))
+;                  #+quicklisp(or (car (asdf-description (ql-dist:find-asdf-system-file (alexandria:make-keyword pkg)))))
+;                  #+quicklisp(or (cadr (asdf-description (ql-dist:find-asdf-system-file (alexandria:make-keyword pkg)))))
+;                  (manifest::readme-text (alexandria:make-keyword pkg))))
+;               ((member what '(:function :macro :generic-function :slot-accessor)) 
+;                (with-drawing-options (p :text-face :bold) (format p "~@:(~a~):~a~2%Argument List:~%" pkg sym))  ; pkg to upper-case
+;                (color-lambda p (repl-utilities:arglist sym))
+;                (unless (null sym) (doc-stg what)))
+;               ((member what '(:variable :class :constant :condition)) 
+;   ;(with-drawing-options (p :text-face :bold) (format p "~@:(~a~):~a~%~a" pkg sym what))   ; <----- 13.3.17  ev überlegen
+;   ;(format p "~a" what)
+;                (unless (null sym) (doc-stg what)))
+;               (t "there could be other documantation??")))))))
+
+;======================================================================
+;-to edit ----------------------------------------------------------
+; pkg vs system ??
 (defun disp-info (f p) 
-  (let* ((pkg (cw:item-name (cw:group *application-frame*)))
+  (let* ((pkg (alexandria:make-keyword (cw:item-name (cw:group *application-frame*))))
+         (file (ql-dist:find-asdf-system-file pkg))   ; brauchts nicht mehr
+         (sys (case pkg
+                (:ALEXANDRIA.0.DEV :alexandria)
+                (t pkg)))
+
          (inf-ap-fr (info *application-frame*))
-         (sym (find-symbol (string-upcase inf-ap-fr) (string-upcase pkg))))
-#|-test-
-    (format p "info app-frame: ~s" inf-ap-fr)
-    (format p "~&---pkg: ~s" pkg)
-    (format p "~&---sym: ~s~2%" sym)
-    ;insert path <---
-|#
+         (sym (find-symbol (string-upcase inf-ap-fr) pkg)))
+;#|-test-
+    (format p "~&---info app-frame: ~s" inf-ap-fr)
+    (format p "~&---package: ~s" pkg)
+    (format p "~&---system: ~s" sys)
+    (format p "~&---symbol: ~s" sym)
+    (format p "~&---path: ~s~2%" file)
+    ;(print (cw:group *application-frame*) p)
+;|#
     (flet ((doc-stg (f)
              (with-drawing-options (p :text-face :bold) (format p "~2%Documentation String:~%"))
              (princ (or (manifest::docs-for sym f) "no-doc-string") p)))
       (dolist (what manifest::*categories*)
         (when (manifest::is sym what) 
           (cond 
-            ((string= inf-ap-fr pkg) 
-             (color-info p
+;            ((string= inf-ap-fr pkg) 
+            ((string= inf-ap-fr pkg) (color-info p sys))
+
+
+;(or (string= "x" :x) (string= "x" "x"))
+;            ((or (string= inf-ap-fr pkg) (string= inf-ap-fr (car (package-nicknames pkg))))
+
+;            ((#~m/inf-ap-fr/ (lol:mkstr pkg))
+;             (color-info p sys)
+#|
                (length (pkg-symbols pkg))
-               #+quicklisp(or (car (asdf-description (ql-dist:find-asdf-system-file (alexandria:make-keyword pkg)))))
-               #+quicklisp(or (cadr (asdf-description (ql-dist:find-asdf-system-file (alexandria:make-keyword pkg)))))
-               (manifest::readme-text (alexandria:make-keyword pkg))))
+               (car (asdf-description pkg))
+               (cadr (asdf-description pkg))
+              (manifest::readme-text pkg)))
+|#         
             ((member what '(:function :macro :generic-function :slot-accessor)) 
              (with-drawing-options (p :text-face :bold) (format p "~@:(~a~):~a~2%Argument List:~%" pkg sym))  ; pkg to upper-case
              (color-lambda p (repl-utilities:arglist sym))
@@ -282,6 +353,52 @@ CONFIGURE-POSSIBILITIES:
 ;(format p "~a" what)
              (unless (null sym) (doc-stg what)))
             (t "there could be other documantation??")))))))
+
+;;;;;;;;;;;;;;;;;;;;;
+(defun disp-info (f p) 
+  (let* ((pkg (alexandria:make-keyword (cw:item-name (cw:group *application-frame*))))
+         (sys (case pkg ; vorerst so
+                (:ALEXANDRIA.0.DEV :alexandria)   ; pkg :ALEXANDRIA.0.DEV --  system :alexandria -- pkg-nicknames :alexandria
+                (:jpeg :cl-jpeg)
+                (t pkg)))
+
+
+         (file-ql (ignore-errors (ql-dist:find-asdf-system-file sys)))   ; brauchts nicht mehr
+         (file.asd (asdf:system-relative-pathname sys sys :type "asd"))
+         (file-asdf (ignore-errors (ASDF/SYSTEM:system-source-directory sys)))
+
+         (inf-ap-fr (info *application-frame*))
+         (sym (find-symbol (string-upcase inf-ap-fr) pkg)))
+;#|-test-
+    (format p "~&---info app-frame: ~s" inf-ap-fr)
+    (format p "~&---package: ~s" pkg)
+    (format p "~&---system: ~s" sys)
+    (format p "~&---symbol: ~s" sym)
+    (format p "~&---path-q: ~s" file-ql)
+    (format p "~&---path-a: ~s" file.asd)
+    (format p "~&---path-a: ~s~2%" file-asdf)
+
+
+
+    ;(print (cw:group *application-frame*) p)
+;|#
+    (flet ((doc-stg (f)
+             (with-drawing-options (p :text-face :bold) (format p "~2%Documentation String:~%"))
+             (princ (or (manifest::docs-for sym f) "no-doc-string") p)))
+      (dolist (what manifest::*categories*)
+        (when (manifest::is sym what) 
+          (cond 
+            ((string= inf-ap-fr pkg) (color-info p sys))
+            ((member what '(:function :macro :generic-function :slot-accessor)) 
+             (with-drawing-options (p :text-face :bold) (format p "~@:(~a~):~a~2%Argument List:~%" pkg sym))  ; pkg to upper-case
+             (color-lambda p (repl-utilities:arglist sym))
+             (unless (null sym) (doc-stg what)))
+            ((member what '(:variable :class :constant :condition)) 
+;(with-drawing-options (p :text-face :bold) (format p "~@:(~a~):~a~%~a" pkg sym what))   ; <----- 13.3.17  ev überlegen
+;(format p "~a" what)
+             (unless (null sym) (doc-stg what)))
+            (t "there could be other documantation??")))))))
+
 
 (defun tview (tree key)
   (cw-utils::t2h-r tree)
@@ -295,7 +412,7 @@ CONFIGURE-POSSIBILITIES:
   `(let ((sys (menu-choose (create-menu ,system-category) :printer 'print-numbered-pkg :n-columns 3)))
      #+quicklisp(unless (find-package (string-upcase sys)) (ql:quickload sys))
      (clrhash cw:nodes)
-     (cw-utils::t2h-r (pkg-tree (alexandria.0.dev:make-keyword (string-upcase sys))))
+     (cw-utils::t2h-r (pkg-tree (alexandria:make-keyword (string-upcase sys))))
      (with-application-frame (f) 
        (setf (cw:group f) (make-instance 'node-pkg :sup (string-upcase sys) :disp-inf t)) (redisplay-frame-panes f :force-p t))))
 
