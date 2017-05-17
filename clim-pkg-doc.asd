@@ -8,7 +8,7 @@
   :depends-on (clim-widgets
                 alexandria
                 asdf
-;                onlisp  ;for testing  <-- remove
+                onlisp  ;for testing  <-- remove
                 stdutils
                 manifest repl-utilities)
   :serial t

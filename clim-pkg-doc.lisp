@@ -35,7 +35,7 @@ POSSIBILITY OF SUCH DAMAGE.
 ;--------------------------------------------------------
 ; 1) helper
 ;--------------------------------------------------------
-(defparameter *help* "
+(defparameter *help* "Help:
 Click the root node to see a package's description or readme-file
 -----------------------------------------------------------------
 APROPOS: 
@@ -65,18 +65,59 @@ CONFIGURE-POSSIBILITIES:
     (asdf/system:system-description (asdf/system:find-system sys))
     (asdf/system:system-long-description (asdf/system:find-system sys))))
 
+#|
+;(defun readme (pkg)
+;  (o:file (asdf:system-relative-pathname pkg (package-name pkg))))
+(defun readme (pkg)
+  (o:file
+  (or 
+    (UIOP/FILESYSTEM:PROBE-FILE* 
+      (asdf:system-relative-pathname pkg "README"))
+    (UIOP/FILESYSTEM:PROBE-FILE* 
+      (asdf:system-relative-pathname pkg "README.md"))
+    (UIOP/FILESYSTEM:PROBE-FILE* 
+      (asdf:system-relative-pathname pkg "README.markdown")))))
+|#
+
+;;;;;;;;;;;;;;;;;;
+
+(defun readme-file (pkg)
+  (or 
+    (UIOP/FILESYSTEM:PROBE-FILE* (asdf:system-relative-pathname pkg "README"))
+    (UIOP/FILESYSTEM:PROBE-FILE*  (asdf:system-relative-pathname pkg "README.md")) 
+    (UIOP/FILESYSTEM:PROBE-FILE* (asdf:system-relative-pathname pkg "README.markdown"))
+    (UIOP/FILESYSTEM:PROBE-FILE* (asdf:system-relative-pathname pkg "README.org"))
+
+     (UIOP/FILESYSTEM:PROBE-FILE*  (asdf:system-relative-pathname pkg "doc/index.html"))  ; chunga
+    ))
+
+
+;if html, html2text
+(defun readme (pkg)
+  (or 
+    (o:file (readme-file pkg))
+    (a3 (manifest::readme-text pkg))
+    ))
+
+
+
+
 ;--------------------------------
-;(defun color-info (s nr a1 a2 a3) 
-(defun color-info (s pkg) 
+(defun pkg-description (s pkg)
   (let 
     ((nr (length (pkg-symbols pkg)))
      (a1 (car (asdf-description pkg)))
      (a2 (cadr (asdf-description pkg)))
-     (a3 (manifest::readme-text pkg)))
+;     (a3 (manifest::readme-text pkg)))
+     (a3 (readme pkg)))
+
+    ;;; test
+    (format s "~a~2%" (readme-file pkg))
+    (format s "~a~2%" (describe (find-package pkg) s))
 
 
 
-  (with-drawing-options (s :ink +red+) (format s "~a " nr)) (format s "external-symbols") ; nr ext symbols
+  (with-drawing-options (s :ink +red+) (format s "~a " nr)) (format s "external-symbols")
   (with-drawing-options (s :ink +red+ :text-face :bold) (format s 
 "
 -------------------------
@@ -147,6 +188,7 @@ CONFIGURE-POSSIBILITIES:
                    (r-add-header v i))
                  (pack (cdr l) i (list (car l)))))))
 
+;geht immer noch nicht gut, 15.5.17, collect examples
 (defun remove-empty-bags (l)
   (cond
     ((null l) nil)
@@ -217,7 +259,10 @@ CONFIGURE-POSSIBILITIES:
         (rec (cdr l))))))
 
 ;---------------------------
-(defun pkg-tree (p) (remove-empty-bags (cons (symbol-name p) (insert-what (sym-gr p)))))
+;(defun pkg-tree (p) (remove-empty-bags (cons (symbol-name p) (insert-what (sym-gr p)))))
+;das geht viel besser
+(defun pkg-tree (p) (cons (symbol-name p) (insert-what (remove-empty-bags (sym-gr p)))))
+
 
 ;--------------------------------------------------------
 ; 4) GUI helper
@@ -269,96 +314,11 @@ CONFIGURE-POSSIBILITIES:
 
 (add-menu-item-to-command-table 'pkg-doc "textsize" :command 'txt-size) ;not working <---
 
-;-------------------------------------------------------------------
-;   (defun disp-info (f p) 
-;     (let* ((pkg (cw:item-name (cw:group *application-frame*)))
-;            (inf-ap-fr (info *application-frame*))
-;            (sym (find-symbol (string-upcase inf-ap-fr) (string-upcase pkg))))
-;   ;#|-test-
-;       (format p "~&---info app-frame: ~s" inf-ap-fr)
-;       (format p "~&---pkg: ~s" pkg)
-;       (format p "~&---sym: ~s" sym)
-;       ;insert path <---
-;       (format p "~&---path: ~s~2%" (ql-dist:find-asdf-system-file (alexandria:make-keyword pkg)))
-;   ;|#
-;       (flet ((doc-stg (f)
-;                (with-drawing-options (p :text-face :bold) (format p "~2%Documentation String:~%"))
-;                (princ (or (manifest::docs-for sym f) "no-doc-string") p)))
-;         (dolist (what manifest::*categories*)
-;           (when (manifest::is sym what) 
-;             (cond 
-;               ((string= inf-ap-fr pkg) 
-;                (color-info p
-;                  (length (pkg-symbols pkg))
-;                  #+quicklisp(or (car (asdf-description (ql-dist:find-asdf-system-file (alexandria:make-keyword pkg)))))
-;                  #+quicklisp(or (cadr (asdf-description (ql-dist:find-asdf-system-file (alexandria:make-keyword pkg)))))
-;                  (manifest::readme-text (alexandria:make-keyword pkg))))
-;               ((member what '(:function :macro :generic-function :slot-accessor)) 
-;                (with-drawing-options (p :text-face :bold) (format p "~@:(~a~):~a~2%Argument List:~%" pkg sym))  ; pkg to upper-case
-;                (color-lambda p (repl-utilities:arglist sym))
-;                (unless (null sym) (doc-stg what)))
-;               ((member what '(:variable :class :constant :condition)) 
-;   ;(with-drawing-options (p :text-face :bold) (format p "~@:(~a~):~a~%~a" pkg sym what))   ; <----- 13.3.17  ev überlegen
-;   ;(format p "~a" what)
-;                (unless (null sym) (doc-stg what)))
-;               (t "there could be other documantation??")))))))
-
-;======================================================================
-;-to edit ----------------------------------------------------------
-; pkg vs system ??
-(defun disp-info (f p) 
-  (let* ((pkg (alexandria:make-keyword (cw:item-name (cw:group *application-frame*))))
-         (file (ql-dist:find-asdf-system-file pkg))   ; brauchts nicht mehr
-         (sys (case pkg
-                (:ALEXANDRIA.0.DEV :alexandria)
-                (t pkg)))
-
-         (inf-ap-fr (info *application-frame*))
-         (sym (find-symbol (string-upcase inf-ap-fr) pkg)))
-;#|-test-
-    (format p "~&---info app-frame: ~s" inf-ap-fr)
-    (format p "~&---package: ~s" pkg)
-    (format p "~&---system: ~s" sys)
-    (format p "~&---symbol: ~s" sym)
-    (format p "~&---path: ~s~2%" file)
-    ;(print (cw:group *application-frame*) p)
-;|#
-    (flet ((doc-stg (f)
-             (with-drawing-options (p :text-face :bold) (format p "~2%Documentation String:~%"))
-             (princ (or (manifest::docs-for sym f) "no-doc-string") p)))
-      (dolist (what manifest::*categories*)
-        (when (manifest::is sym what) 
-          (cond 
-;            ((string= inf-ap-fr pkg) 
-            ((string= inf-ap-fr pkg) (color-info p sys))
-
-
-;(or (string= "x" :x) (string= "x" "x"))
-;            ((or (string= inf-ap-fr pkg) (string= inf-ap-fr (car (package-nicknames pkg))))
-
-;            ((#~m/inf-ap-fr/ (lol:mkstr pkg))
-;             (color-info p sys)
-#|
-               (length (pkg-symbols pkg))
-               (car (asdf-description pkg))
-               (cadr (asdf-description pkg))
-              (manifest::readme-text pkg)))
-|#         
-            ((member what '(:function :macro :generic-function :slot-accessor)) 
-             (with-drawing-options (p :text-face :bold) (format p "~@:(~a~):~a~2%Argument List:~%" pkg sym))  ; pkg to upper-case
-             (color-lambda p (repl-utilities:arglist sym))
-             (unless (null sym) (doc-stg what)))
-            ((member what '(:variable :class :constant :condition)) 
-;(with-drawing-options (p :text-face :bold) (format p "~@:(~a~):~a~%~a" pkg sym what))   ; <----- 13.3.17  ev überlegen
-;(format p "~a" what)
-             (unless (null sym) (doc-stg what)))
-            (t "there could be other documantation??")))))))
-
-;;;;;;;;;;;;;;;;;;;;;
 (defun disp-info (f p) 
   (let* ((pkg (alexandria:make-keyword (cw:item-name (cw:group *application-frame*))))
          (sys (case pkg ; vorerst so
                 (:ALEXANDRIA.0.DEV :alexandria)   ; pkg :ALEXANDRIA.0.DEV --  system :alexandria -- pkg-nicknames :alexandria
+                ;(:clim :mcclim)
                 (:jpeg :cl-jpeg)
                 (t pkg)))
 
@@ -388,7 +348,11 @@ CONFIGURE-POSSIBILITIES:
       (dolist (what manifest::*categories*)
         (when (manifest::is sym what) 
           (cond 
-            ((string= inf-ap-fr pkg) (color-info p sys))
+;((string= inf-ap-fr "help") (princ (info *application-frame*) p))
+((#~m'^Help' inf-ap-fr) (with-drawing-options (p :ink +blue+) (format p (info *application-frame*))))
+
+
+            ((string= inf-ap-fr pkg) (pkg-description p sys))
             ((member what '(:function :macro :generic-function :slot-accessor)) 
              (with-drawing-options (p :text-face :bold) (format p "~@:(~a~):~a~2%Argument List:~%" pkg sym))  ; pkg to upper-case
              (color-lambda p (repl-utilities:arglist sym))
@@ -409,12 +373,13 @@ CONFIGURE-POSSIBILITIES:
   (setf (info *application-frame*) item))
 
 (defmacro select-pkg (system-category)
-  `(let ((sys (menu-choose (create-menu ,system-category) :printer 'print-numbered-pkg :n-columns 3)))
-     #+quicklisp(unless (find-package (string-upcase sys)) (ql:quickload sys))
+  `(let ((pkg (string-upcase (menu-choose (create-menu ,system-category) :printer 'print-numbered-pkg :n-columns 3))))
+     #+quicklisp(unless (find-package pkg) (ql:quickload pkg))
      (clrhash cw:nodes)
-     (cw-utils::t2h-r (pkg-tree (alexandria:make-keyword (string-upcase sys))))
+     (cw-utils::t2h-r (pkg-tree (alexandria:make-keyword pkg)))
+;     (cw-utils::t2h-r (pkg-tree pkg))
      (with-application-frame (f) 
-       (setf (cw:group f) (make-instance 'node-pkg :sup (string-upcase sys) :disp-inf t)) (redisplay-frame-panes f :force-p t))))
+       (setf (cw:group f) (make-instance 'node-pkg :sup pkg :disp-inf t)) (redisplay-frame-panes f :force-p t))))
 
 (define-pkg-doc-command (packages :menu t) ()
   (select-pkg (current-systems)))
@@ -427,22 +392,53 @@ CONFIGURE-POSSIBILITIES:
 (define-pkg-doc-command (local-projects :menu "LocalLibs") ()
   (select-pkg (local-systems)))
 
+;package-lock error, if apropos instead of com-apropos!!
 (define-pkg-doc-command (com-apropos :menu t) ()
   (setf (info *application-frame*) (apropos (accept 'string) (accept 'string :default nil) 'external-only)))
 
 #+quicklisp
-(define-pkg-doc-command (com-ql-apropos :menu t) ()
+(define-pkg-doc-command (ql-apropos :menu t) ()
   (setf (info *application-frame*) (ql:system-apropos (accept 'string))))
+
+
 
 (define-pkg-doc-command (help :menu t) ()
   (setf (info *application-frame*) (princ *help* *standard-input*)))
+
+(define-pkg-doc-command (help :menu t) ()
+  (setf (info *application-frame*) *help*)) ;(princ *help* *standard-input*)))
+;(princ *help* *standard-input*)) ; das geht, in first window
+
+(define-pkg-doc-command (help :menu t) ()
+;(princ *help* *standard-output*))
+   (with-drawing-options (t :ink +blue+) (princ *help* *standard-output*)))
+
+
 
 (define-pkg-doc-command (clear :menu t) ()
   (window-clear *standard-input*))
 
 (define-pkg-doc-command (features :menu t) ()
-   ;(setf (info *application-frame*) (print (o:lststg (o:group (sort *features* 'string<) 10)))))
-   (setf (info *application-frame*) (format t "~{~&  ~a~}" (sort *features* 'string<))))
+   (setf (info *application-frame*) 
+         ;(format t "~{~&  ~a~}" (sort *features* 'string<))))
+  (with-drawing-options (t :ink +red+) (format t "~{~&  ~a~}" (sort *features* 'string<)))))
+
+
+(define-pkg-doc-command (modules :menu t) ()
+   (setf (info *application-frame*) 
+         ;(format t "~{~&  ~a~}" (sort *modules* 'string<))))
+  (with-drawing-options (t :ink +blue+) (format t "~{~&  ~a~}" (sort *modules* 'string<)))))
+
+(define-pkg-doc-command (modules :menu t) ()
+;;   (setf (info *application-frame*) 
+         ;(format t "~{~&  ~a~}" (sort *modules* 'string<))))
+  (with-drawing-options (*standard-input* :ink +blue+) (format *standard-input* "~{~&  ~a~}" (sort *modules* 'string<))))
+
+(define-pkg-doc-command (modules :menu t) ()
+   (setf (info *application-frame*) (format nil "~{~&  ~a~}" (sort *modules* 'string<))))
+         ;(format t "~{~&  ~a~}" (sort *modules* 'string<))))
+;  (with-drawing-options (*standard-input* :ink +blue+) (format *standard-input* "~{~&  ~a~}" (sort *modules* 'string<))))
+
 
 ;--------------------------------------------------------
 ; 8) main
