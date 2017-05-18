@@ -138,23 +138,12 @@ CONFIGURE-POSSIBILITIES:
 ;(defun ql-system-name (ql-system) (#~m'(?<= )\S+' (princ-to-string ql-system)))
 
 ;--------------------------------------------------------
-; 2) sytem-categories
-;--------------------------------------------------------
-(defun current-systems () 
-  (cons "common-lisp" (sort (remove "common-lisp" (mapcar (alexandria:compose 'string-downcase 'package-name) (list-all-packages)) :test 'string=) 'string<)))
+;; CREATE A PACKAGE- OR SYSTEM-TREE
+;-------------------------------------------------
 
-#+quicklisp
-(defun quicklisp-systems () 
-  ;(remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-system-name (ql:system-list)))) ;remove system-test
-  (remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-dist::name (ql:system-list))))
-
-#+quicklisp
-(defun local-systems ()
-  (if (probe-file #P"~/src/lisp/") (push #P"~/src/lisp/" ql:*local-project-directories*)) ; <--- comment out or adapt to your system -----
-  (sort (ql:list-local-systems) 'string<))
 
 ;----------------------------------
-; -3) create hierarchy by symbolname
+; HIERARCHY BY SYMBOLNAME
 ;----------------------------------
 ;(parts 'a-b-c) -> ("a-" "b-" "c")
 (defun parts (x)
@@ -188,7 +177,6 @@ CONFIGURE-POSSIBILITIES:
                    (r-add-header v i))
                  (pack (cdr l) i (list (car l)))))))
 
-;geht immer noch nicht gut, 15.5.17, collect examples
 (defun remove-empty-bags (l)
   (cond
     ((null l) nil)
@@ -196,6 +184,9 @@ CONFIGURE-POSSIBILITIES:
     ((and (consp (car l)) (notany #'consp (car l))) (cons (car l) (remove-empty-bags (cdr l))))
     ((and (= 2 (length l)) (atom (car l)) (consp (cadr l))) (remove-empty-bags (cadr l)))
     (t (cons (remove-empty-bags (car l)) (remove-empty-bags (cdr l))))))
+
+(defun hierarchy-by-symbolname (l)
+  (remove-empty-bags (pack l)))
 
 ;--------------------------------------------------------
 ; -2) edit some package, for now common-lisp, clim
@@ -228,17 +219,79 @@ CONFIGURE-POSSIBILITIES:
                 (t (pkg-symbols pkg))) 
               when (manifest::is sym what) collect sym) #'nsort:nstring<))
 
+
 (defun symbol-groups (pkg)
   "group symbols into manifest::*categories*"
   (loop for what in manifest::*categories*
         for category = (sorted-symbols-in-a-category pkg what)
         when category collect (cons (#~s'$':' (princ-to-string what)) category)))
 
+#|
+;-------- 18.5.17
+(defun hierarchical-category (p c) ;package category
+  (hierarchy-by-symbolname
+    (cw:sym2stg
+      (sorted-symbols-in-a-category p c))))
+
+(defun symbol-groups (pkg)
+  "group symbols into manifest::*categories*"
+  (loop for what in manifest::*categories*
+        for category = (hierarchical-category pkg what)
+        when category collect (cons (#~s'$':' (princ-to-string what)) category)))
+
+;-----------
+|#
+(defun hierarchical-category (l) ;package category
+  (hierarchy-by-symbolname
+    (cw:sym2stg l)))
+
+
+#|
+(clim-pkg-doc::symbol-groups :cl-fad)
+
+(("function:" "canonical-pathname" ("copy-" "copy-file" "copy-stream")
+  "delete-directory-and-files"
+  ("directory-" "directory-exists-p" "directory-pathname-p") "file-exists-p"
+  "list-directory"
+  ("merge-pathnames-as-" "merge-pathnames-as-directory"
+   "merge-pathnames-as-file")
+  "open-temporary"
+  ("pathname-" "pathname-absolute-p"
+   ("pathname-as-" "pathname-as-directory" "pathname-as-file")
+   "pathname-directory-pathname" "pathname-equal" "pathname-parent-directory"
+   "pathname-relative-p" "pathname-root-p")
+  "walk-directory")
+ ("macro:"
+  ("with-" "with-open-temporary-file" "with-output-to-temporary-file"))
+ ("variable:" "*default-template*")
+ ("condition:" "cannot-create-temporary-file"
+  "invalid-temporary-pathname-template"))
+|#
+(defun symbol-groups (pkg)
+  "group symbols into manifest::*categories*"
+  (loop for what in manifest::*categories*
+        for category = (sorted-symbols-in-a-category pkg what)
+;        when category collect (cons (#~s'$':' (princ-to-string what)) (hierarchical-category category))))
+        when category collect (cons (#~s'$':' (string-downcase (princ-to-string what))) (hierarchical-category category))))
+;        when category collect (cons (#~s'(.+)'\L\1:' (symbol-name what)) (hierarchical-category category))))    ; <--- perlre \u ·\l case ??? <----
+
+
+
+
+;orig
 (defun sym-gr (p)
   (case p 
     (:clim (substitute (mapcar 'cw::sym2stg (clim-constants)) '("constant:" NIL) (mapcar 'pack (mapcar 'cw::sym2stg (symbol-groups p))) :test 'equal))
     (:common-lisp (cons (pack (mapcar 'cw::sym2stg (spec-op))) (mapcar 'pack (mapcar 'cw::sym2stg (symbol-groups p)))))
     (t (mapcar 'pack (mapcar 'cw::sym2stg (symbol-groups p))))))
+
+
+(defun sym-gr (p)
+  (case p 
+    (:clim (substitute (mapcar 'cw::sym2stg (clim-constants)) '("constant:" NIL) (mapcar (alexandria:compose 'remove-empty-bags 'pack) (mapcar 'cw::sym2stg (symbol-groups p))) :test 'equal))
+    (:common-lisp (cons (remove-empty-bags (pack (mapcar 'cw::sym2stg (spec-op)))) (mapcar (alexandria:compose 'remove-empty-bags 'pack) (mapcar 'cw::sym2stg (symbol-groups p)))))
+    (t (mapcar (alexandria:compose 'remove-empty-bags 'pack) (mapcar 'cw::sym2stg (symbol-groups p))))))
+
 
 ;---------------------------
 (defun insert-what (l)
@@ -261,8 +314,15 @@ CONFIGURE-POSSIBILITIES:
 ;---------------------------
 ;(defun pkg-tree (p) (remove-empty-bags (cons (symbol-name p) (insert-what (sym-gr p)))))
 ;das geht viel besser
-(defun pkg-tree (p) (cons (symbol-name p) (insert-what (remove-empty-bags (sym-gr p)))))
 
+;(defun pkg-tree (p) (cons (symbol-name p) (insert-what (remove-empty-bags (sym-gr p)))))
+;(defun pkg-tree (p) (cons (symbol-name p) (insert-what (sym-gr p))))
+
+;(defun pkg-tree (p) (cons p (insert-what (sym-gr p))))
+
+
+;scheint gut zu gehen außer cl und clim
+(defun pkg-tree (p) (cons p (insert-what (symbol-groups p))))
 
 ;--------------------------------------------------------
 ; 4) GUI helper
@@ -274,27 +334,6 @@ CONFIGURE-POSSIBILITIES:
             (with-drawing-options (s :ink +red+ :text-face :bold) (format s "~(~a~)" x))
             (format s "~(~a~)" x)))
         (ppcre:split "(&[^ )]+)" (princ-to-string l) :with-registers-p t)))
-
-;--------------------------------------------------------
-; -2) create a package or system menu-list -- with submenus: com. cl- asdf/ ...
-;--------------------------------------------------------
-(defun create-menu (l)
-  "turn a list into a sorted numbered list"
-  (create-menu% (remove-empty-bags (pack l))))
-
-(defun create-menu% (l &aux (n 0))
-  "insert :items and :value into a tree to create a clim-menu"
-    (mapcar (lambda (x)
-              (if (atom x)
-                (list (lol:mkstr (incf n) #\space x) :value x)
-                (cons (lol:mkstr (incf n) #\space (car x)) (cons :items (list (create-menu% (cdr x)))))))
-            l))
-
-;---------------------------
-(defun print-numbered-pkg (item strm)
-  (if (#~m'[-./]$' (car item))
-    (with-drawing-options (strm :ink +red+ :text-face :bold) (princ (string-downcase (car item)) strm))
-    (princ (string-downcase (car item)) strm)))
 
 ;--------------------------------------------------------
 ; 7) gui
@@ -368,21 +407,60 @@ CONFIGURE-POSSIBILITIES:
   (cw-utils::t2h-r tree)
   (cw:tree-view (make-instance 'node-pkg :sup key :disp-inf t) 'string 'pkg-doc :right 800))
 
-;;; commands --------------------------------------
-(define-pkg-doc-command show-info ((item 'string :gesture :select))   
-  (setf (info *application-frame*) item))
+;;; GUI COMMANDS --------------------------------------
 
+;==============================================================
+; create hierarchical menu to choose a package or a system
+;==============================================================
+; 1) sorted lists of lower-case strings 
+;---------------------------------------
+(defun current-packages () 
+  (cons "common-lisp" (sort (remove "common-lisp" (mapcar (alexandria:compose 'string-downcase 'package-name) (list-all-packages)) :test 'string=) 'string<)))
+
+#+quicklisp
+(defun quicklisp-systems () 
+  ;(remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-system-name (ql:system-list)))) ;remove system-test
+  (remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-dist::name (ql:system-list))))
+
+#+quicklisp
+(defun local-systems ()
+  (if (probe-file #P"~/src/lisp/") (push #P"~/src/lisp/" ql:*local-project-directories*)) ; <--- comment out or adapt to your system -----
+  (sort (ql:list-local-systems) 'string<))
+
+; 2) create hierarchical menu to choose a package or a system. Hierarchy by symbol-name: com. cl- asdf/ ...
+;----------------------------------------------------------------------------------------------------------
+(defun create-menu (l)
+  "turn a list into a sorted numbered list"
+  (create-menu% (remove-empty-bags (pack l))))
+
+(defun create-menu% (l &aux (n 0))
+  "insert :items and :value into a tree to create a clim-menu"
+    (mapcar (lambda (x)
+              (if (atom x)
+                (list (lol:mkstr (incf n) #\space x) :value x)
+                (cons (lol:mkstr (incf n) #\space (car x)) (cons :items (list (create-menu% (cdr x)))))))
+            l))
+
+(defun print-numbered-pkg (item strm)
+  (if (#~m'[-./]$' (car item))
+    (with-drawing-options (strm :ink +red+ :text-face :bold) (princ (string-downcase (car item)) strm))
+    (princ (string-downcase (car item)) strm)))
+
+; 3) select a package or system, 
+;    quickload the selected system if necessary, 
+;    create a hierarchical tree with the symbols of the selected package or the corresponding package of a system,
+;    populate the hash-table with parents, 
+;    make instances of parent-nodes
 (defmacro select-pkg (system-category)
   `(let ((pkg (string-upcase (menu-choose (create-menu ,system-category) :printer 'print-numbered-pkg :n-columns 3))))
      #+quicklisp(unless (find-package pkg) (ql:quickload pkg))
      (clrhash cw:nodes)
-     (cw-utils::t2h-r (pkg-tree (alexandria:make-keyword pkg)))
-;     (cw-utils::t2h-r (pkg-tree pkg))
+     (cw-utils::t2h-r (pkg-tree pkg))
      (with-application-frame (f) 
        (setf (cw:group f) (make-instance 'node-pkg :sup pkg :disp-inf t)) (redisplay-frame-panes f :force-p t))))
 
 (define-pkg-doc-command (packages :menu t) ()
-  (select-pkg (current-systems)))
+  (select-pkg (current-packages)))
 
 #+quicklisp
 (define-pkg-doc-command (quicklisp :menu t) ()
@@ -391,13 +469,16 @@ CONFIGURE-POSSIBILITIES:
 #+quicklisp
 (define-pkg-doc-command (local-projects :menu "LocalLibs") ()
   (select-pkg (local-systems)))
+;---------------------------------------------------------------
 
-;package-lock error, if apropos instead of com-apropos!!
-(define-pkg-doc-command (com-apropos :menu t) ()
+(define-pkg-doc-command show-info ((item 'string :gesture :select))   
+  (setf (info *application-frame*) item))
+
+(define-pkg-doc-command (cl-apropos :menu t) () ; common-lisp apropos
   (setf (info *application-frame*) (apropos (accept 'string) (accept 'string :default nil) 'external-only)))
 
 #+quicklisp
-(define-pkg-doc-command (ql-apropos :menu t) ()
+(define-pkg-doc-command (ql-apropos :menu t) () ; quicklisp apropos
   (setf (info *application-frame*) (ql:system-apropos (accept 'string))))
 
 
