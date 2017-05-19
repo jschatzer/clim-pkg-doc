@@ -9,6 +9,7 @@
                 alexandria
                 asdf
                 onlisp  ;for testing  <-- remove
+                anaphora
                 stdutils
                 manifest repl-utilities)
   :serial t

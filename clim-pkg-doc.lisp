@@ -431,7 +431,8 @@ CONFIGURE-POSSIBILITIES:
 ;----------------------------------------------------------------------------------------------------------
 (defun create-menu (l)
   "turn a list into a sorted numbered list"
-  (create-menu% (remove-empty-bags (pack l))))
+  ;(create-menu% (remove-empty-bags (pack l))))
+  (create-menu% (hierarchy-by-symbolname l)))
 
 (defun create-menu% (l &aux (n 0))
   "insert :items and :value into a tree to create a clim-menu"
@@ -454,10 +455,26 @@ CONFIGURE-POSSIBILITIES:
 (defmacro select-pkg (system-category)
   `(let ((pkg (string-upcase (menu-choose (create-menu ,system-category) :printer 'print-numbered-pkg :n-columns 3))))
      #+quicklisp(unless (find-package pkg) (ql:quickload pkg))
-     (clrhash cw:nodes)
+     (clrhash cw:nodes)   ;include in t2h-r
      (cw-utils::t2h-r (pkg-tree pkg))
      (with-application-frame (f) 
        (setf (cw:group f) (make-instance 'node-pkg :sup pkg :disp-inf t)) (redisplay-frame-panes f :force-p t))))
+
+(defmacro select-pkg (system-category)
+  `(let ((pkg (string-upcase (menu-choose (create-menu ,system-category) :printer 'print-numbered-pkg :n-columns 3))))
+     #+quicklisp(unless (find-package pkg) (ql:quickload pkg))
+     (create-tview pkg)))
+
+(defmacro select-pkg (system-category)
+  `(let ((pkg (string-upcase (menu-choose (create-menu ,system-category) :printer 'print-numbered-pkg :n-columns 3))))
+     #+quicklisp(unless (find-package pkg) (load-package pkg))
+     (create-tview pkg)))
+
+(defmacro select-pkg (system-category)
+  `(let ((pkg (string-upcase (menu-choose (create-menu ,system-category) :printer 'print-numbered-pkg :n-columns 3))))
+     #+quicklisp(load-package pkg)))
+
+
 
 (define-pkg-doc-command (packages :menu t) ()
   (select-pkg (current-packages)))
@@ -469,7 +486,57 @@ CONFIGURE-POSSIBILITIES:
 #+quicklisp
 (define-pkg-doc-command (local-projects :menu "LocalLibs") ()
   (select-pkg (local-systems)))
+;-----
+(defun packages-by-system (sys)
+  (let ((before (list-all-packages)))
+    (ql:quickload sys)
+    (mapcar 'package-name
+            (set-difference (list-all-packages) before))))
+
+
+(defun packages-by-system (sys)
+  "sorted"
+  (let ((before (list-all-packages)))
+;(ignore-errors 
+    (ql:quickload sys)
+    (sort (mapcar 'package-name
+            (set-difference (list-all-packages) before)) 'string<)))
+
+(defun packages-by-system (sys)
+  "sorted"
+  (let ((before (list-all-packages)))
+(ignore-errors (ql:quickload sys))     ;<----
+    (sort (mapcar 'package-name
+            (set-difference (list-all-packages) before)) 'string<)))
+
+
+
+;("CL-TYPESETTING-SYSTEM" "CL-PDF-SYSTEM" "ACL-COMPAT-SYSTEM" "IRONCLAD-SYSTEM"..)
+;(packages-by-system :gendl)
+
+(defun create-tview (pkg)
+     (clrhash cw:nodes)   ;include in t2h-r
+     (cw-utils::t2h-r (pkg-tree pkg))
+     (with-application-frame (f) 
+       (setf (cw:group f) (make-instance 'node-pkg :sup pkg :disp-inf t)) (redisplay-frame-panes f :force-p t)))
+
+#|
+(defun load-package (pkg)
+  (cond 
+    ((find-package pkg) (create-tview pkg))
+    ((ignore-errors (ql:quickload pkg)) (create-tview pkg))
+    (t (packages-by-system pkg))))
+;    (t (load-package otherpkg))))
+|#
+
+(defun load-package (pkg)
+  (anaphora:acond 
+    ((find-package pkg) (create-tview pkg))
+    ((packages-by-system pkg) (if (find-package pkg) (create-tview pkg) anaphora:it))
+    (t "hello-test")))
+
 ;---------------------------------------------------------------
+;&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
 (define-pkg-doc-command show-info ((item 'string :gesture :select))   
   (setf (info *application-frame*) item))
