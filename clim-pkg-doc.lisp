@@ -520,6 +520,15 @@ CONFIGURE-POSSIBILITIES:
      (with-application-frame (f) 
        (setf (cw:group f) (make-instance 'node-pkg :sup pkg :disp-inf t)) (redisplay-frame-panes f :force-p t)))
 
+
+;scheint zu gehen
+(defun create-tview (pkg)
+     ;(clrhash cw:nodes)   ;include in t2h-r
+     (cw-utils::t2h-r (pkg-tree pkg))
+     (with-application-frame (f) 
+       (setf (cw:group f) (make-instance 'node-pkg :sup pkg :disp-inf t)) (redisplay-frame-panes f :force-p t)))
+
+
 #|
 (defun load-package (pkg)
   (cond 
