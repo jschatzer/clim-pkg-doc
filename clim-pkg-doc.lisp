@@ -134,9 +134,6 @@ CONFIGURE-POSSIBILITIES:
   )
 
 ;--------------------------------
-; #<QL-DIST:SYSTEM zsort / zsort-20120520-git / quicklisp 2015-06-08>) 
-;(defun ql-system-name (ql-system) (#~m'(?<= )\S+' (princ-to-string ql-system)))
-
 ;--------------------------------------------------------
 ;; CREATE A PACKAGE- OR SYSTEM-TREE
 ;-------------------------------------------------
@@ -168,6 +165,7 @@ CONFIGURE-POSSIBILITIES:
 (defun r-add-header (l ind) ; recursive-add-header list index
   (cons (key (car l) ind) (pack (reverse l) (1+ ind))))
 
+;e.g. clim macro with- geht richtig
 (defun pack (l &optional (i 0) v)
   (cond ((null l) (if (= 1 (length v)) v (list (r-add-header v i))))
         ((null v) (pack (cdr l) i (list (car l))))
@@ -177,6 +175,23 @@ CONFIGURE-POSSIBILITIES:
                    (r-add-header v i))
                  (pack (cdr l) i (list (car l)))))))
 
+#|
+;------
+;geht richtig!!!, 30.4.17
+(defun pack (l &optional (i 0) v)
+  (cond ((null l) (if (= 1 (length v)) v (list (cons (key (car v) i) (pack (reverse v) (1+ i))))))
+        ((null v) (pack (cdr l) i (list (car l))))
+        ((equal (key (car v) i) (key (car l) i)) (pack (cdr l) i (push (car l) v)))
+        (t (cons (if (= 1 (length v))
+                   (car v)
+                   (cons (key (car v) i) (pack (reverse v) (1+ i))))
+                 (pack (cdr l) i (list (car l)))))))
+;------
+|#
+
+
+
+;stört clim macro with-     <-----!! 
 (defun remove-empty-bags (l)
   (cond
     ((null l) nil)
@@ -185,9 +200,18 @@ CONFIGURE-POSSIBILITIES:
     ((and (= 2 (length l)) (atom (car l)) (consp (cadr l))) (remove-empty-bags (cadr l)))
     (t (cons (remove-empty-bags (car l)) (remove-empty-bags (cdr l))))))
 
+;so geht clim macro with-  nicht richtig
 (defun hierarchy-by-symbolname (l)
   (remove-empty-bags (pack l)))
 
+#|
+;damit geht clim macro with-  richtig
+(defun hierarchy-by-symbolname (l)
+  (pack l))
+|#
+
+
+#|
 ;--------------------------------------------------------
 ; -2) edit some package, for now common-lisp, clim
 ;--------------------------------------------------------
@@ -208,8 +232,11 @@ CONFIGURE-POSSIBILITIES:
 (defun spec-op () (cons "special-operator:" (sort (remove-if-not #'special-operator-p (pkg-symbols :common-lisp)) #'string<)))
 
 ;--------------------------------
+|#
+
 (defun pkg-symbols (pkg) (loop for s being the external-symbols of pkg collect s))
 
+#|
 (defun sorted-symbols-in-a-category (pkg what)
   "return a sorted list of all symbols in a category"
   (sort (loop for sym in 
@@ -218,6 +245,17 @@ CONFIGURE-POSSIBILITIES:
                 (:common-lisp (remove-if #'special-operator-p (pkg-symbols :cl)))
                 (t (pkg-symbols pkg))) 
               when (manifest::is sym what) collect sym) #'nsort:nstring<))
+|#
+
+(defun sorted-symbols-in-a-category (pkg what)
+  "return a sorted list of all symbols in a category"
+  (sort (loop for sym in 
+              (case pkg
+                ;(:clim (remove-if #'clim-constant-p (pkg-symbols :clim)))
+                ;(:common-lisp (remove-if #'special-operator-p (pkg-symbols :cl)))
+                (t (pkg-symbols pkg))) 
+              when (manifest::is sym what) collect sym) #'nsort:nstring<))
+
 
 
 (defun symbol-groups (pkg)
@@ -278,6 +316,7 @@ CONFIGURE-POSSIBILITIES:
 
 
 
+#|
 ;orig
 (defun sym-gr (p)
   (case p 
@@ -291,7 +330,7 @@ CONFIGURE-POSSIBILITIES:
     (:clim (substitute (mapcar 'cw::sym2stg (clim-constants)) '("constant:" NIL) (mapcar (alexandria:compose 'remove-empty-bags 'pack) (mapcar 'cw::sym2stg (symbol-groups p))) :test 'equal))
     (:common-lisp (cons (remove-empty-bags (pack (mapcar 'cw::sym2stg (spec-op)))) (mapcar (alexandria:compose 'remove-empty-bags 'pack) (mapcar 'cw::sym2stg (symbol-groups p)))))
     (t (mapcar (alexandria:compose 'remove-empty-bags 'pack) (mapcar 'cw::sym2stg (symbol-groups p))))))
-
+|#
 
 ;---------------------------
 (defun insert-what (l)
@@ -414,13 +453,16 @@ CONFIGURE-POSSIBILITIES:
 ;==============================================================
 ; 1) sorted lists of lower-case strings 
 ;---------------------------------------
+; #<QL-DIST:SYSTEM zsort / zsort-20120520-git / quicklisp 2015-06-08>) 
+(defun ql-system-name (ql-system) (#~m'(?<= )\S+' (princ-to-string ql-system)))
+
 (defun current-packages () 
   (cons "common-lisp" (sort (remove "common-lisp" (mapcar (alexandria:compose 'string-downcase 'package-name) (list-all-packages)) :test 'string=) 'string<)))
 
 #+quicklisp
 (defun quicklisp-systems () 
-  ;(remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-system-name (ql:system-list)))) ;remove system-test
-  (remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-dist::name (ql:system-list))))
+  (remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-system-name (ql:system-list)))) ;remove system-test
+  ;(remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-dist::name (ql:system-list))))
 
 #+quicklisp
 (defun local-systems ()
