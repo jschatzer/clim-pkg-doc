@@ -8,7 +8,8 @@
   :depends-on (clim-widgets
                 alexandria
                 asdf
-                onlisp  ;for testing  <-- remove
+;                onlisp  ;for testing  <-- remove
+hans-helper ;for testing  <-- remove
                 anaphora
                 stdutils
                 manifest repl-utilities)
