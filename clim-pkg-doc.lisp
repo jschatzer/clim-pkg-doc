@@ -32,6 +32,9 @@ POSSIBILITY OF SUCH DAMAGE.
 
 (in-package #:clim-pkg-doc)
 
+;todo: 
+;1) index.html with html2text, for now only strip-html
+
 ;--------------------------------------------------------
 ; 1) helper
 ;--------------------------------------------------------
@@ -66,27 +69,7 @@ CONFIGURE-POSSIBILITIES:
     (asdf/system:system-long-description (asdf/system:find-system sys))))
 
 
-;12.3.18................................
-;;from https://gist.github.com/MegaLoler/033648176bc93c99d0fabf536e3916be
-;von obigem script, scheint ausreichend zu gehen. <----
-;; i'd love to do this with regex, but for now...
-;; not using regex because idk how to do that in --script mode                      
-(defun strip-html (s)
-  "Remove all html tags from a string."                                             
-  (format nil "~{~A~}"
-          (mapcar (lambda (s)
-                    (car (last (split-with-subseq s ">"))))
-                  (split-with-subseq s "<")))) 
-
-(defun split-with-subseq (seq subseq)
-  "Recursively split a sequence by occurences of a subsequence."                    
-  (let ((position (search subseq seq)))                                             
-    (if position
-      (cons (subseq seq 0 position)
-            (split-with-subseq
-              (subseq seq (+ position (length subseq)))
-              subseq))
-      (list seq)))) 
+(defun strip-html (s) (#~s'<.*?>''gs s))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -106,32 +89,46 @@ CONFIGURE-POSSIBILITIES:
 |#
 
 ;;;;;;;;;;;;;;;;;;
+;README describes the system, not the package. 
+; mcclim ok, clim not ok
+;(clim-pkg-doc::readme-file :mcclim)
+
+;system/package with different names:
+;mcclicm clim     -- (h:ql :mcclim)
+;-----------------------------------
+
 
 (defun readme-file (pkg)
+  "Find doc-file for SYSTEM"
+
   (or 
-    (UIOP/FILESYSTEM:PROBE-FILE* (asdf:system-relative-pathname pkg "README"))
-    (UIOP/FILESYSTEM:PROBE-FILE*  (asdf:system-relative-pathname pkg "README.md")) 
+    (UIOP/FILESYSTEM:PROBE-FILE* (asdf:system-relative-pathname pkg "README"))  ; cl-fad
+    (UIOP/FILESYSTEM:PROBE-FILE*  (asdf:system-relative-pathname pkg "README.md")) ; mcclim
     (UIOP/FILESYSTEM:PROBE-FILE* (asdf:system-relative-pathname pkg "README.markdown"))
     (UIOP/FILESYSTEM:PROBE-FILE* (asdf:system-relative-pathname pkg "README.org"))
 
      (UIOP/FILESYSTEM:PROBE-FILE*  (asdf:system-relative-pathname pkg "doc/README"))   ; submarine hat index.html und doc/README txt <--
-     (UIOP/FILESYSTEM:PROBE-FILE*  (asdf:system-relative-pathname pkg "doc/index.html"))  ; chunga
+     (UIOP/FILESYSTEM:PROBE-FILE*  (asdf:system-relative-pathname pkg "doc/index.html")) ; submarine 
+     (UIOP/FILESYSTEM:PROBE-FILE*  (asdf:system-relative-pathname pkg "docs/index.html"))  ; chunga
 
     ))
 
 
-;if html, html2text
-(defun readme (pkg)
-  (or 
-    ;(h:file (readme-file pkg))
-    (alexandria:read-file-into-string (readme-file pkg))
-    (a3 (manifest::readme-text pkg))
-    ))
+; so geht clim/mcclim 
+(defun readme (syst)
+  "Get text from the SYSTEM's docfile,
+  if doc is html strip the tags"
+  (let ((pkg (case syst
+               (:clim :mcclim)
+               (t syst))))
+    (or 
+      (pre:match (file-namestring (readme-file pkg))
+        (#~m'html' (strip-html (alexandria:read-file-into-string (readme-file pkg))))
+        ;(t (alexandria:read-file-into-string (readme-file pkg))))
+        (#~m'.*' (alexandria:read-file-into-string (readme-file pkg))))    ; match  t / otherwise ?? <---
+      (a3 (manifest::readme-text pkg))  ; brauchts das noch ??
+      )))
 
-
-
-
-;--------------------------------
 (defun pkg-description (s pkg)
   (let 
     ((nr (length (pkg-symbols pkg)))
@@ -159,8 +156,7 @@ CONFIGURE-POSSIBILITIES:
 -------------------------
  README
 -------------------------"))
-  (format s "~&~a" a3))
-  )
+  (format s "~&~a" a3)))
 
 ;--------------------------------
 ;--------------------------------------------------------
@@ -171,17 +167,12 @@ CONFIGURE-POSSIBILITIES:
 ;----------------------------------
 ; HIERARCHY BY SYMBOLNAME
 ;----------------------------------
-;  ;(parts 'a-b-c) -> ("a-" "b-" "c")
-;  #;(defun parts (x)
-;    (perlre:ifmatch (#~m'^(/+)$' x)
-;      (list $1)
-;      (#~m'[^-./]+(-|\.|/)?'g x)))
-
-;4.4.18 geht
+; (parts 'a-b-c) -> ("a-" "b-" "c")
 (defun parts (x) (#~d'(?<=-)' x))
+
 ;---------------------------
-;(key 'a-b-c)  ; "A-"
-;(key 'a-b-c 1) ;"A-B-"
+; (key 'a-b-c)  ; "A-"
+; (key 'a-b-c 1) ;"A-B-"
 (defun key (s &optional (i 0))
  (#~s' ''g (stdutils:list-to-delimited-string (reverse (key% s i))))) 
 
@@ -294,65 +285,21 @@ CONFIGURE-POSSIBILITIES:
                 (t (pkg-symbols pkg))) 
               when (manifest::is sym what) collect sym) #'nsort:nstring<))
 
-
-
 (defun symbol-groups (pkg)
   "group symbols into manifest::*categories*"
   (loop for what in manifest::*categories*
         for category = (sorted-symbols-in-a-category pkg what)
         when category collect (cons (#~s'$':' (princ-to-string what)) category)))
 
-#|
-;-------- 18.5.17
-(defun hierarchical-category (p c) ;package category
-  (hierarchy-by-symbolname
-    (cw:sym2stg
-      (sorted-symbols-in-a-category p c))))
-
-(defun symbol-groups (pkg)
-  "group symbols into manifest::*categories*"
-  (loop for what in manifest::*categories*
-        for category = (hierarchical-category pkg what)
-        when category collect (cons (#~s'$':' (princ-to-string what)) category)))
-
-;-----------
-|#
 (defun hierarchical-category (l) ;package category
   (hierarchy-by-symbolname
     (cw:sym2stg l)))
 
-
-#|
-(clim-pkg-doc::symbol-groups :cl-fad)
-
-(("function:" "canonical-pathname" ("copy-" "copy-file" "copy-stream")
-  "delete-directory-and-files"
-  ("directory-" "directory-exists-p" "directory-pathname-p") "file-exists-p"
-  "list-directory"
-  ("merge-pathnames-as-" "merge-pathnames-as-directory"
-   "merge-pathnames-as-file")
-  "open-temporary"
-  ("pathname-" "pathname-absolute-p"
-   ("pathname-as-" "pathname-as-directory" "pathname-as-file")
-   "pathname-directory-pathname" "pathname-equal" "pathname-parent-directory"
-   "pathname-relative-p" "pathname-root-p")
-  "walk-directory")
- ("macro:"
-  ("with-" "with-open-temporary-file" "with-output-to-temporary-file"))
- ("variable:" "*default-template*")
- ("condition:" "cannot-create-temporary-file"
-  "invalid-temporary-pathname-template"))
-|#
 (defun symbol-groups (pkg)
   "group symbols into manifest::*categories*"
   (loop for what in manifest::*categories*
         for category = (sorted-symbols-in-a-category pkg what)
-;        when category collect (cons (#~s'$':' (princ-to-string what)) (hierarchical-category category))))
         when category collect (cons (#~s'$':' (string-downcase (princ-to-string what))) (hierarchical-category category))))
-;        when category collect (cons (#~s'(.+)'\L\1:' (symbol-name what)) (hierarchical-category category))))    ; <--- perlre \u ·\l case ??? <----
-
-
-
 
 #|
 ;orig
@@ -387,16 +334,6 @@ CONFIGURE-POSSIBILITIES:
                        ((atom y) (insert-what% w y))
                        (t (cons (rec (car y)) (rec (cdr y)))))))
         (rec (cdr l))))))
-
-;---------------------------
-;(defun pkg-tree (p) (remove-empty-bags (cons (symbol-name p) (insert-what (sym-gr p)))))
-;das geht viel besser
-
-;(defun pkg-tree (p) (cons (symbol-name p) (insert-what (remove-empty-bags (sym-gr p)))))
-;(defun pkg-tree (p) (cons (symbol-name p) (insert-what (sym-gr p))))
-
-;(defun pkg-tree (p) (cons p (insert-what (sym-gr p))))
-
 
 ;scheint gut zu gehen außer cl und clim
 (defun pkg-tree (p) (cons p (insert-what (symbol-groups p))))
@@ -500,7 +437,6 @@ CONFIGURE-POSSIBILITIES:
 #+quicklisp
 (defun quicklisp-systems () 
   (remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-system-name (ql:system-list)))) ;remove system-test
-  ;(remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-dist::name (ql:system-list))))
 
 #+quicklisp
 (defun local-systems ()
@@ -511,7 +447,6 @@ CONFIGURE-POSSIBILITIES:
 ;----------------------------------------------------------------------------------------------------------
 (defun create-menu (l)
   "turn a list into a sorted numbered list"
-  ;(create-menu% (remove-empty-bags (pack l))))
   (create-menu% (hierarchy-by-symbolname l)))
 
 (defun create-menu% (l &aux (n 0))
@@ -534,27 +469,7 @@ CONFIGURE-POSSIBILITIES:
 ;    make instances of parent-nodes
 (defmacro select-pkg (system-category)
   `(let ((pkg (string-upcase (menu-choose (create-menu ,system-category) :printer 'print-numbered-pkg :n-columns 3))))
-     #+quicklisp(unless (find-package pkg) (ql:quickload pkg))
-     (clrhash cw:nodes)   ;include in t2h-r
-     (cw-utils::t2h-r (pkg-tree pkg))
-     (with-application-frame (f) 
-       (setf (cw:group f) (make-instance 'node-pkg :sup pkg :disp-inf t)) (redisplay-frame-panes f :force-p t))))
-
-(defmacro select-pkg (system-category)
-  `(let ((pkg (string-upcase (menu-choose (create-menu ,system-category) :printer 'print-numbered-pkg :n-columns 3))))
-     #+quicklisp(unless (find-package pkg) (ql:quickload pkg))
-     (create-tview pkg)))
-
-(defmacro select-pkg (system-category)
-  `(let ((pkg (string-upcase (menu-choose (create-menu ,system-category) :printer 'print-numbered-pkg :n-columns 3))))
-     #+quicklisp(unless (find-package pkg) (load-package pkg))
-     (create-tview pkg)))
-
-(defmacro select-pkg (system-category)
-  `(let ((pkg (string-upcase (menu-choose (create-menu ,system-category) :printer 'print-numbered-pkg :n-columns 3))))
      #+quicklisp(load-package pkg)))
-
-
 
 (define-pkg-doc-command (packages :menu t) ()
   (select-pkg (current-packages)))
@@ -566,57 +481,18 @@ CONFIGURE-POSSIBILITIES:
 #+quicklisp
 (define-pkg-doc-command (local-projects :menu "LocalLibs") ()
   (select-pkg (local-systems)))
-;-----
-(defun packages-by-system (sys)
-  (let ((before (list-all-packages)))
-    (ql:quickload sys)
-    (mapcar 'package-name
-            (set-difference (list-all-packages) before))))
-
 
 (defun packages-by-system (sys)
   "sorted"
   (let ((before (list-all-packages)))
-;(ignore-errors 
-    (ql:quickload sys)
-    (sort (mapcar 'package-name
-            (set-difference (list-all-packages) before)) 'string<)))
-
-(defun packages-by-system (sys)
-  "sorted"
-  (let ((before (list-all-packages)))
-(ignore-errors (ql:quickload sys))     ;<----
-    (sort (mapcar 'package-name
-            (set-difference (list-all-packages) before)) 'string<)))
-
-
-
-;("CL-TYPESETTING-SYSTEM" "CL-PDF-SYSTEM" "ACL-COMPAT-SYSTEM" "IRONCLAD-SYSTEM"..)
-;(packages-by-system :gendl)
+    (ignore-errors (ql:quickload sys))     ;<----
+    (sort (mapcar 'package-name (set-difference (list-all-packages) before)) 'string<)))
 
 (defun create-tview (pkg)
-     (clrhash cw:nodes)   ;include in t2h-r
-     (cw-utils::t2h-r (pkg-tree pkg))
-     (with-application-frame (f) 
-       (setf (cw:group f) (make-instance 'node-pkg :sup pkg :disp-inf t)) (redisplay-frame-panes f :force-p t)))
-
-
-;scheint zu gehen
-(defun create-tview (pkg)
-     ;(clrhash cw:nodes)   ;include in t2h-r
-     (cw-utils::t2h-r (pkg-tree pkg))
-     (with-application-frame (f) 
-       (setf (cw:group f) (make-instance 'node-pkg :sup pkg :disp-inf t)) (redisplay-frame-panes f :force-p t)))
-
-
-#|
-(defun load-package (pkg)
-  (cond 
-    ((find-package pkg) (create-tview pkg))
-    ((ignore-errors (ql:quickload pkg)) (create-tview pkg))
-    (t (packages-by-system pkg))))
-;    (t (load-package otherpkg))))
-|#
+  (cw-utils::t2h-r (pkg-tree pkg))
+  (with-application-frame (f) 
+    (setf (cw:group f) (make-instance 'node-pkg :sup pkg :disp-inf t)) 
+    (redisplay-frame-panes f :force-p t)))
 
 (defun load-package (pkg)
   (anaphora:acond 
@@ -637,45 +513,24 @@ CONFIGURE-POSSIBILITIES:
 (define-pkg-doc-command (ql-apropos :menu t) () ; quicklisp apropos
   (setf (info *application-frame*) (ql:system-apropos (accept 'string))))
 
-
-
 (define-pkg-doc-command (help :menu t) ()
   (setf (info *application-frame*) (princ *help* *standard-input*)))
 
 (define-pkg-doc-command (help :menu t) ()
-  (setf (info *application-frame*) *help*)) ;(princ *help* *standard-input*)))
-;(princ *help* *standard-input*)) ; das geht, in first window
+  (setf (info *application-frame*) *help*))
 
 (define-pkg-doc-command (help :menu t) ()
-;(princ *help* *standard-output*))
-   (with-drawing-options (t :ink +blue+) (princ *help* *standard-output*)))
-
-
+  (with-drawing-options (t :ink +blue+) (princ *help* *standard-output*)))
 
 (define-pkg-doc-command (clear :menu t) ()
   (window-clear *standard-input*))
 
 (define-pkg-doc-command (features :menu t) ()
-   (setf (info *application-frame*) 
-         ;(format t "~{~&  ~a~}" (sort *features* 'string<))))
+  (setf (info *application-frame*) 
   (with-drawing-options (t :ink +red+) (format t "~{~&  ~a~}" (sort *features* 'string<)))))
 
-
 (define-pkg-doc-command (modules :menu t) ()
-   (setf (info *application-frame*) 
-         ;(format t "~{~&  ~a~}" (sort *modules* 'string<))))
-  (with-drawing-options (t :ink +blue+) (format t "~{~&  ~a~}" (sort *modules* 'string<)))))
-
-(define-pkg-doc-command (modules :menu t) ()
-;;   (setf (info *application-frame*) 
-         ;(format t "~{~&  ~a~}" (sort *modules* 'string<))))
-  (with-drawing-options (*standard-input* :ink +blue+) (format *standard-input* "~{~&  ~a~}" (sort *modules* 'string<))))
-
-(define-pkg-doc-command (modules :menu t) ()
-   (setf (info *application-frame*) (format nil "~{~&  ~a~}" (sort *modules* 'string<))))
-         ;(format t "~{~&  ~a~}" (sort *modules* 'string<))))
-;  (with-drawing-options (*standard-input* :ink +blue+) (format *standard-input* "~{~&  ~a~}" (sort *modules* 'string<))))
-
+  (setf (info *application-frame*) (format nil "~{~&  ~a~}" (sort *modules* 'string<))))
 
 ;--------------------------------------------------------
 ; 8) main
