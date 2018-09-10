@@ -123,7 +123,8 @@ CONFIGURE-POSSIBILITIES:
 ;if html, html2text
 (defun readme (pkg)
   (or 
-    (h:file (readme-file pkg))
+    ;(h:file (readme-file pkg))
+    (alexandria:read-file-into-string (readme-file pkg))
     (a3 (manifest::readme-text pkg))
     ))
 
@@ -170,11 +171,11 @@ CONFIGURE-POSSIBILITIES:
 ;----------------------------------
 ; HIERARCHY BY SYMBOLNAME
 ;----------------------------------
-;(parts 'a-b-c) -> ("a-" "b-" "c")
-#;(defun parts (x)
-  (perlre:ifmatch (#~m'^(/+)$' x)
-    (list $1)
-    (#~m'[^-./]+(-|\.|/)?'g x)))
+;  ;(parts 'a-b-c) -> ("a-" "b-" "c")
+;  #;(defun parts (x)
+;    (perlre:ifmatch (#~m'^(/+)$' x)
+;      (list $1)
+;      (#~m'[^-./]+(-|\.|/)?'g x)))
 
 ;4.4.18 geht
 (defun parts (x) (#~d'(?<=-)' x))
@@ -192,9 +193,10 @@ CONFIGURE-POSSIBILITIES:
              (nth i (parts s))
              (key% s (1- i))))))
 
-;geht nicht ??, warum nicht?
-#;(defun key (s &optional (i 0))
-  (h:lststg (subseq (parts s) 0 (1+ i))))
+;  ;geht nicht ??, warum nicht?
+;  #;(defun key (s &optional (i 0))
+;    ;(h:lststg (subseq (parts s) 0 (1+ i))))
+;    (stdutils:list-to-delimited-string (subseq (parts s) 0 (1+ i))))
 
 
 
