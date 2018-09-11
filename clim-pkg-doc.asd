@@ -5,11 +5,12 @@
   :description "clim-package-documentation"
   :author "<schatzer.johann@gmail>"
   :license "BSD Simplified"
-  :depends-on (clim-widgets
+  :depends-on (clim-widgets  ; laden perlre
                 alexandria
                 asdf
 ;                onlisp  ;for testing  <-- remove
-hans-helper ;for testing  <-- remove
+;hans-helper ;for testing  <-- remove
+                prove
                 anaphora
                 stdutils
                 manifest repl-utilities)
@@ -21,5 +22,7 @@ hans-helper ;for testing  <-- remove
 ;;;;;;;
 ;(:file "pkg-tree")
 ;(:file "n-clim-pkg-doc")
-               (:file "clim-pkg-doc")))
+               (:file "clim-pkg-doc")
+               (:file "test")
+               ))
 

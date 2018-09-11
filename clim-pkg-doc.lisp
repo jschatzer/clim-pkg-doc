@@ -35,6 +35,15 @@ POSSIBILITY OF SUCH DAMAGE.
 ;todo: 
 ;1) index.html with html2text, for now only strip-html
 
+#|
+;einteilung, order
+System description
+GUI
+GUI commands
+Symboltree  pkg system
+...
+|#
+
 ;--------------------------------------------------------
 ; 1) helper
 ;--------------------------------------------------------
@@ -53,41 +62,15 @@ CONFIGURE-POSSIBILITIES:
 
 ;1) cl+ssl.asd hat 2x defpackage vor defsystem -- loop
 ;2) alexandria.0.dev    pathname systemfile
-#|
-(defun asdf-description (f)
-  "return list of short and long asdf-description"
-  (with-open-file (i f)
-    (loop 
-      (let ((asd (read i nil nil)))
-      (if (#~m'defsystem'i (lol:mkstr (car asd)))
-        (return (list (getf (cddr asd) :description) (getf (cddr asd) :long-description))))))))
-|#
 
+;mit match (a b ...)
 (defun asdf-description (sys)
-  (list
-    (asdf/system:system-description (asdf/system:find-system sys))
-    (asdf/system:system-long-description (asdf/system:find-system sys))))
-
+  (let ((x (asdf/system:find-system sys)))
+    (list (asdf/system:system-description x) (asdf/system:system-long-description x))))
 
 (defun strip-html (s) (#~s'<.*?>''gs s))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
 #|
-;(defun readme (pkg)
-;  (o:file (asdf:system-relative-pathname pkg (package-name pkg))))
-(defun readme (pkg)
-  (o:file
-  (or 
-    (UIOP/FILESYSTEM:PROBE-FILE* 
-      (asdf:system-relative-pathname pkg "README"))
-    (UIOP/FILESYSTEM:PROBE-FILE* 
-      (asdf:system-relative-pathname pkg "README.md"))
-    (UIOP/FILESYSTEM:PROBE-FILE* 
-      (asdf:system-relative-pathname pkg "README.markdown")))))
-|#
-
 ;;;;;;;;;;;;;;;;;;
 ;README describes the system, not the package. 
 ; mcclim ok, clim not ok
@@ -97,24 +80,23 @@ CONFIGURE-POSSIBILITIES:
 ;mcclicm clim     -- (h:ql :mcclim)
 ;-----------------------------------
 
+"README           ; cl-fad
+"README.md"       ; mcclim
+"README.markdown"
+"README.org"
+"doc/README"      ; submarine hat index.html und doc/README txt <--
+"doc/index.html"  ; submarine 
+"docs/index.html" ; chunga
+|#
 
-(defun readme-file (pkg)
+(defmacro readme-file (pkg)
   "Find doc-file for SYSTEM"
-
-  (or 
-    (UIOP/FILESYSTEM:PROBE-FILE* (asdf:system-relative-pathname pkg "README"))  ; cl-fad
-    (UIOP/FILESYSTEM:PROBE-FILE*  (asdf:system-relative-pathname pkg "README.md")) ; mcclim
-    (UIOP/FILESYSTEM:PROBE-FILE* (asdf:system-relative-pathname pkg "README.markdown"))
-    (UIOP/FILESYSTEM:PROBE-FILE* (asdf:system-relative-pathname pkg "README.org"))
-
-     (UIOP/FILESYSTEM:PROBE-FILE*  (asdf:system-relative-pathname pkg "doc/README"))   ; submarine hat index.html und doc/README txt <--
-     (UIOP/FILESYSTEM:PROBE-FILE*  (asdf:system-relative-pathname pkg "doc/index.html")) ; submarine 
-     (UIOP/FILESYSTEM:PROBE-FILE*  (asdf:system-relative-pathname pkg "docs/index.html"))  ; chunga
-
-    ))
-
+  `(or 
+     ,@(loop for x in '("README" "README.md" "README.markdown" "README.org" "doc/README" "doc/index.html" "docs/index.html")
+             collect `(UIOP/FILESYSTEM:PROBE-FILE* (asdf:system-relative-pathname ,pkg ,x)))))
 
 ; so geht clim/mcclim 
+; no readme errors, scheint zu gehen
 (defun readme (syst)
   "Get text from the SYSTEM's docfile,
   if doc is html strip the tags"
@@ -122,12 +104,13 @@ CONFIGURE-POSSIBILITIES:
                (:clim :mcclim)
                (t syst))))
     (or 
-      (pre:match (file-namestring (readme-file pkg))
-        (#~m'html' (strip-html (alexandria:read-file-into-string (readme-file pkg))))
-        ;(t (alexandria:read-file-into-string (readme-file pkg))))
-        (#~m'.*' (alexandria:read-file-into-string (readme-file pkg))))    ; match  t / otherwise ?? <---
-      (a3 (manifest::readme-text pkg))  ; brauchts das noch ??
-      )))
+      (ignore-errors
+        (pre:match (file-namestring (readme-file pkg))
+                   (#~m'html' (strip-html (alexandria:read-file-into-string (readme-file pkg))))
+                   (#~m'.*' (alexandria:read-file-into-string (readme-file pkg)))))    ; match  t / otherwise ?? <---
+      ;(a3 (manifest::readme-text pkg))  ; brauchts das noch ??
+      "No System Info?")))
+      
 
 (defun pkg-description (s pkg)
   (let 
@@ -151,7 +134,7 @@ CONFIGURE-POSSIBILITIES:
 -------------------------"))
   (with-drawing-options (s :text-face :bold) (format s "~&SHORT: ")) (format s "~a" a1)
   (with-drawing-options (s :text-face :bold) (format s "~2&LONG: ")) (format s "~a" a2)
-  (with-drawing-options (s :ink +red+ :text-face :bold) (format s 
+  (with-drawing-options (s :text-face :bold :ink +red+) (format s 
 "~&
 -------------------------
  README
@@ -160,7 +143,7 @@ CONFIGURE-POSSIBILITIES:
 
 ;--------------------------------
 ;--------------------------------------------------------
-;; CREATE A PACKAGE- OR SYSTEM-TREE
+;; CREATE A PACKAGE- OR SYSTEM-TREE    --- SYMBOL-TREE
 ;-------------------------------------------------
 
 
