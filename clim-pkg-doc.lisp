@@ -93,7 +93,7 @@ CONFIGURE-POSSIBILITIES:
   "Find doc-file for SYSTEM"
   `(or 
      ,@(loop for x in '("README" "README.md" "README.markdown" "README.org" "doc/README" "doc/index.html" "docs/index.html")
-             collect `(UIOP/FILESYSTEM:PROBE-FILE* (asdf:system-relative-pathname ,pkg ,x)))))
+             collect `(probe-file (asdf:system-relative-pathname ,pkg ,x)))))
 
 ; so geht clim/mcclim 
 ; no readme errors, scheint zu gehen
@@ -411,15 +411,17 @@ CONFIGURE-POSSIBILITIES:
 ;==============================================================
 ; 1) sorted lists of lower-case strings 
 ;---------------------------------------
+;                     .. / systemname-.... /
+;                        / cffi_0.19.0 /     und diverse andere
 ; #<QL-DIST:SYSTEM zsort / zsort-20120520-git / quicklisp 2015-06-08>) 
-(defun ql-system-name (ql-system) (#~m'(?<= )\S+' (princ-to-string ql-system)))
+(defun ql-system-name (ql-system) (#~s'(-|_)[^-_]+?(-git|-darcs|-svn|-http|-hg)?$'' (second (#~d' / ' (princ-to-string ql-system)))))      ; what is hg ??
 
 (defun current-packages () 
   (cons "common-lisp" (sort (remove "common-lisp" (mapcar (alexandria:compose 'string-downcase 'package-name) (list-all-packages)) :test 'string=) 'string<)))
 
 #+quicklisp
 (defun quicklisp-systems () 
-  (remove-if (lambda (x) (#~m'[-.]test[s]*$' x)) (mapcar 'ql-system-name (ql:system-list)))) ;remove system-test
+  (sort (remove-duplicates (mapcar 'ql-system-name (ql:system-list)) :test 'string=) 'string<))
 
 #+quicklisp
 (defun local-systems ()
@@ -451,7 +453,7 @@ CONFIGURE-POSSIBILITIES:
 ;    populate the hash-table with parents, 
 ;    make instances of parent-nodes
 (defmacro select-pkg (system-category)
-  `(let ((pkg (string-upcase (menu-choose (create-menu ,system-category) :printer 'print-numbered-pkg :n-columns 3))))
+  `(let ((pkg (string-upcase (menu-choose (create-menu ,system-category) :printer 'print-numbered-pkg :n-columns 5))))  ; 3 bisher
      #+quicklisp(load-package pkg)))
 
 (define-pkg-doc-command (packages :menu t) ()
