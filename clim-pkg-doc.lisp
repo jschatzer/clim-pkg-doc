@@ -81,6 +81,7 @@ CONFIGURE-POSSIBILITIES:
 ;-----------------------------------
 
 "README           ; cl-fad
+"README.txt"      ; hans-helper
 "README.md"       ; mcclim
 "README.markdown"
 "README.org"
@@ -92,7 +93,7 @@ CONFIGURE-POSSIBILITIES:
 (defmacro readme-file (pkg)
   "Find doc-file for SYSTEM"
   `(or 
-     ,@(loop for x in '("README" "README.md" "README.markdown" "README.org" "doc/README" "doc/index.html" "docs/index.html")
+     ,@(loop for x in '("README" "README.txt" "README.md" "README.markdown" "README.org" "doc/README" "doc/index.html" "docs/index.html")
              collect `(probe-file (asdf:system-relative-pathname ,pkg ,x)))))
 
 ; so geht clim/mcclim 
@@ -101,14 +102,13 @@ CONFIGURE-POSSIBILITIES:
   "Get text from the SYSTEM's docfile,
   if doc is html strip the tags"
   (let ((pkg (case syst
-               (:clim :mcclim)
+               (:clim :mcclim) ;belassen
                (t syst))))
     (or 
       (ignore-errors
         (pre:match (file-namestring (readme-file pkg))
                    (#~m'html' (strip-html (alexandria:read-file-into-string (readme-file pkg))))
                    (#~m'.*' (alexandria:read-file-into-string (readme-file pkg)))))    ; match  t / otherwise ?? <---
-      ;(a3 (manifest::readme-text pkg))  ; brauchts das noch ??
       "No System Info?")))
       
 
@@ -121,10 +121,10 @@ CONFIGURE-POSSIBILITIES:
      (a3 (readme pkg)))
 
     ;;; test
-    (format s "~a~2%" (readme-file pkg))
-    (format s "~a~2%" (describe (find-package pkg) s))
+    ;(format s "~a~2%" (readme-file pkg))
+    ;(format s "~a~2%" (describe (find-package pkg) s))
 
-
+    (format s "Nickname: ~{~a~}~%" (package-nicknames pkg))
 
   (with-drawing-options (s :ink +red+) (format s "~a " nr)) (format s "external-symbols")
   (with-drawing-options (s :ink +red+ :text-face :bold) (format s 
@@ -223,7 +223,8 @@ CONFIGURE-POSSIBILITIES:
 |#
 
 
-#|
+;-------------------------------
+;das brauchts damit CL ladet
 ;--------------------------------------------------------
 ; -2) edit some package, for now common-lisp, clim
 ;--------------------------------------------------------
@@ -244,7 +245,7 @@ CONFIGURE-POSSIBILITIES:
 (defun spec-op () (cons "special-operator:" (sort (remove-if-not #'special-operator-p (pkg-symbols :common-lisp)) #'string<)))
 
 ;--------------------------------
-|#
+;|#
 
 (defun pkg-symbols (pkg) (loop for s being the external-symbols of pkg collect s))
 
@@ -350,22 +351,25 @@ CONFIGURE-POSSIBILITIES:
 
 (add-menu-item-to-command-table 'pkg-doc "textsize" :command 'txt-size) ;not working <---
 
+; system and pkg are the same, 13.9.18 <-----
 (defun disp-info (f p) 
   (let* ((pkg (alexandria:make-keyword (cw:item-name (cw:group *application-frame*))))
          (sys (case pkg ; vorerst so
-                (:ALEXANDRIA.0.DEV :alexandria)   ; pkg :ALEXANDRIA.0.DEV --  system :alexandria -- pkg-nicknames :alexandria
+                ;(:ALEXANDRIA.0.DEV :alexandria)   ; pkg :ALEXANDRIA.0.DEV --  system :alexandria -- pkg-nicknames :alexandria
                 ;(:clim :mcclim)
-                (:jpeg :cl-jpeg)
+                ;(:jpeg :cl-jpeg)
                 (t pkg)))
 
 
+         #|
          (file-ql (ignore-errors (ql-dist:find-asdf-system-file sys)))   ; brauchts nicht mehr
          (file.asd (asdf:system-relative-pathname sys sys :type "asd"))
          (file-asdf (ignore-errors (ASDF/SYSTEM:system-source-directory sys)))
+         |#
 
          (inf-ap-fr (info *application-frame*))
          (sym (find-symbol (string-upcase inf-ap-fr) pkg)))
-;#|-test-
+#|-test-
     (format p "~&---info app-frame: ~s" inf-ap-fr)
     (format p "~&---package: ~s" pkg)
     (format p "~&---system: ~s" sys)
@@ -377,7 +381,7 @@ CONFIGURE-POSSIBILITIES:
 
 
     ;(print (cw:group *application-frame*) p)
-;|#
+|#
     (flet ((doc-stg (f)
              (with-drawing-options (p :text-face :bold) (format p "~2%Documentation String:~%"))
              (princ (or (manifest::docs-for sym f) "no-doc-string") p)))
@@ -399,6 +403,28 @@ CONFIGURE-POSSIBILITIES:
              (unless (null sym) (doc-stg what)))
             (t "there could be other documantation??")))))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; system idem pkg 
+; but mcclim = sys, clim = pkg
+(defun disp-info (f p) 
+  (let* ((pkg (alexandria:make-keyword (cw:item-name (cw:group *application-frame*))))
+         (inf-ap-fr (info *application-frame*))
+         (sym (find-symbol (string-upcase inf-ap-fr) pkg)))
+    (flet ((doc-stg (f)
+                    (with-drawing-options (p :text-face :bold) (format p "~2%Documentation String:~%"))
+                    (princ (or (manifest::docs-for sym f) "no-doc-string") p)))
+      (dolist (what manifest::*categories*)
+        (when (manifest::is sym what) 
+          (cond 
+            ((#~m'^Help' inf-ap-fr) (with-drawing-options (p :ink +blue+) (format p (info *application-frame*))))
+            ((string= inf-ap-fr pkg) (pkg-description p pkg))
+            ((member what '(:function :macro :generic-function :slot-accessor)) 
+             (with-drawing-options (p :text-face :bold) (format p "~@:(~a~):~a~2%Argument List:~%" pkg sym))  ; pkg to upper-case
+             (color-lambda p (repl-utilities:arglist sym))
+             (unless (null sym) (doc-stg what)))
+            ((member what '(:variable :class :constant :condition)) 
+             (unless (null sym) (doc-stg what)))
+            (t "there could be other documantation??")))))))
 
 (defun tview (tree key)
   (cw-utils::t2h-r tree)
@@ -464,6 +490,30 @@ CONFIGURE-POSSIBILITIES:
                 (cons (lol:mkstr (incf n) #\space (car x)) (cons :items (list (create-menu% (cdr x)))))))
             l))
 
+(defun create-menu% (l &aux (n 0))
+  "insert :items and :value into a tree to create a clim-menu"
+    (mapcar (lambda (x)
+              (if (atom x)
+                (list (lol:mkstr (incf n) #\space x) :value x) ; orig
+ ;               (prog1 (cons (lol:mkstr (incf n) #\space (car x)) (cons :items (list (create-menu% (cdr x))))) (incf n (+ n (length x))))))
+;                (prog1 (cons (lol:mkstr (incf n) #\space (car x)) (cons :items (list (create-menu% (cdr x))))) (incf n))))
+;                (prog1 (cons (lol:mkstr (incf n) #\space (car x)) (cons :items (list (create-menu% (cdr x))))) (setf n (+ n (length x)))))) ; geht fast
+;                (prog1 (cons (lol:mkstr  #\space (car x)) (cons :items (list (create-menu% (cdr x))))) (setf n (+ n (length x)))))) ;  ; use (incf n) lenght to indent <---  fast richtig
+                (prog1 (cons (lol:mkstr  #\space (car x)) (cons :items (list (create-menu% (cdr x))))) (setf n (1- (+ n (length x))))))) ;
+            l))
+
+
+#|
+;test
+#;(defun create-menu% (l &optional (n 0))
+  "insert :items and :value into a tree to create a clim-menu"
+    (mapcar (lambda (x)
+              (if (atom x)
+                (list (lol:mkstr (incf n) #\space x) :value x)
+                (cons (lol:mkstr (incf n) #\space (car x)) (cons :items (list (create-menu% (cdr x) 0))))))
+            l))
+|#
+
 (defun print-numbered-pkg (item strm)
   (if (#~m'[-./]$' (car item))
     (with-drawing-options (strm :ink +red+ :text-face :bold) (princ (string-downcase (car item)) strm))
@@ -502,11 +552,24 @@ CONFIGURE-POSSIBILITIES:
     (redisplay-frame-panes f :force-p t)))
 
 (defun load-package (pkg)
-  (format nil "~a" pkg)   ; <--- remove, for testing only
+  ;(format nil "~a" pkg)   ; <--- remove, for testing only
   (anaphora:acond 
     ((find-package pkg) (create-tview pkg))
     ((packages-by-system pkg) (if (find-package pkg) (create-tview pkg) anaphora:it))
     (t "hello-test")))
+
+; damit ladet quicklisp nicht, present packages gehen gut
+;mcclim ladet nicht mit quicklisp
+;The name "MCCLIM" does not designate any package
+;(defun load-package (pkg) (create-tview pkg))   <-----------------
+
+#|
+(defun load-package (pkg) 
+  (let ((pkg (case pkg 
+               ("mcclim" "clim"))))
+  (create-tview pkg)))
+|#
+
 
 ;---------------------------------------------------------------
 ;&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
@@ -538,7 +601,7 @@ CONFIGURE-POSSIBILITIES:
   (with-drawing-options (t :ink +red+) (format t "~{~&  ~a~}" (sort *features* 'string<)))))
 
 (define-pkg-doc-command (modules :menu t) ()
-  (setf (info *application-frame*) (format nil "~{~&  ~a~}" (sort *modules* 'string<))))
+  (setf (info *application-frame*) (format t "~{~&  ~a~}" (sort *modules* 'string<))))
 
 ;--------------------------------------------------------
 ; 8) main
