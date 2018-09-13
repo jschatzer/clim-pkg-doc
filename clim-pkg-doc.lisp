@@ -416,8 +416,30 @@ CONFIGURE-POSSIBILITIES:
 ; #<QL-DIST:SYSTEM zsort / zsort-20120520-git / quicklisp 2015-06-08>) 
 (defun ql-system-name (ql-system) (#~s'(-|_)[^-_]+?(-git|-darcs|-svn|-http|-hg)?$'' (second (#~d' / ' (princ-to-string ql-system)))))      ; what is hg ??
 
+#|
+;orig
 (defun current-packages () 
   (cons "common-lisp" (sort (remove "common-lisp" (mapcar (alexandria:compose 'string-downcase 'package-name) (list-all-packages)) :test 'string=) 'string<)))
+
+;geht
+(defun current-packages () 
+  (remove-if-not (lambda (x) (ignore-errors (asdf:find-system x))) (mapcar (alexandria:compose 'string-downcase 'package-name) (list-all-packages))))
+
+;sorted, geht
+(defun current-packages () 
+  (sort (remove-if-not (lambda (x) (ignore-errors (asdf:find-system x))) (mapcar (alexandria:compose 'string-downcase 'package-name) (list-all-packages))) 'string<))
+|#
+
+; 13.9.18
+;common lisp ladet nicht, alexandria ist nicht dabei, sonst ~ok
+(defun current-packages () 
+  (cons "common-lisp" (sort (remove-if-not (lambda (x) (ignore-errors (asdf:find-system x))) (mapcar (alexandria:compose 'string-downcase 'package-name) (list-all-packages))) 'string<)))
+
+#|
+(defun current-packages () 
+  (cons "COMMON-LISP" (sort (remove-if-not (lambda (x) (ignore-errors (asdf:find-system x))) (mapcar (alexandria:compose 'string-downcase 'package-name) (list-all-packages))) 'string<)))
+|#
+
 
 #+quicklisp
 (defun quicklisp-systems () 
@@ -480,6 +502,7 @@ CONFIGURE-POSSIBILITIES:
     (redisplay-frame-panes f :force-p t)))
 
 (defun load-package (pkg)
+  (format nil "~a" pkg)   ; <--- remove, for testing only
   (anaphora:acond 
     ((find-package pkg) (create-tview pkg))
     ((packages-by-system pkg) (if (find-package pkg) (create-tview pkg) anaphora:it))
