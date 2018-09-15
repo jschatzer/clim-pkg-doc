@@ -32,6 +32,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 (in-package #:clim-pkg-doc)
 ; http://bauhh.dyndns.org:8000/clim-spec/index.html
+; in vim   :set cc=94
 
 ;todo: 
 ;1) cl+ssl.asd hat 2x defpackage vor defsystem -- loop
@@ -78,7 +79,8 @@ README describes the system, not the package.
 
 (defmacro readme-file (sys)
   "Look for a system's documentation file"
-  `(or ,@(loop for x in '("README" "README.txt" "README.md" "README.markdown" "README.org" "doc/README" "doc/index.html" "docs/index.html")
+  `(or ,@(loop for x in '("README" "README.txt" "README.md" "README.markdown" "README.org" 
+                          "doc/README" "doc/index.html" "docs/index.html")
                collect `(probe-file (asdf:system-relative-pathname ,sys ,x)))))
 
 (defun readme (sys)
@@ -90,7 +92,7 @@ README describes the system, not the package.
     (or (ignore-errors
           (pre:match (file-namestring (readme-file pkg))
             (#~m'html' (strip-html (alexandria:read-file-into-string (readme-file pkg))))
-            (#~m'.*' (alexandria:read-file-into-string (readme-file pkg))))) ; match  t / otherwise ?? <---
+            (#~m'.*' (alexandria:read-file-into-string (readme-file pkg))))) ;match t ?? <---
         "No System Info?")))
 
 (defun strip-html (s) (#~s'<.*?>''gs s))
@@ -178,7 +180,9 @@ README describes the system, not the package.
 ;    (cons "constant:" (cons (pack (list (cons :color-names c))) (pack o)))))  ; 14.12.16 ist einheitlicher <----
 
 ;;; if package is COMMON LISP remove special operatores and add them as a separate group.
-(defun spec-op () (cons "special-operator:" (sort (remove-if-not #'special-operator-p (pkg-symbols :common-lisp)) #'string<)))
+(defun spec-op () 
+  (cons "special-operator:" 
+        (sort (remove-if-not 'special-operator-p (pkg-symbols :common-lisp)) 'string<)))
 ;--------------------------------------------------------
 
 (defun pkg-symbols (pkg) (loop for s being the external-symbols of pkg collect s))
@@ -200,7 +204,8 @@ README describes the system, not the package.
   "group symbols into manifest::*categories*"
   (loop for what in manifest::*categories*
         for category = (sorted-symbols-in-a-category pkg what)
-        when category collect (cons (#~s'$':' (string-downcase (princ-to-string what))) (hierarchical-category category))))
+        when category collect (cons (#~s'$':' (string-downcase (princ-to-string what))) 
+                                    (hierarchical-category category))))
 
 (defun insert-what (l)
    (mapcar 'insert-what%% l))
@@ -284,7 +289,8 @@ README describes the system, not the package.
   (select-pkg (local-systems)))
 
 (defun select-pkg (system-category)
-  (let ((pkg (string-upcase (menu-choose (create-menu system-category) :printer 'print-numbered-pkg :n-columns 5))))  ; 3 bisher
+  (let ((pkg (string-upcase (menu-choose (create-menu system-category) 
+                                         :printer 'print-numbered-pkg :n-columns 5))))
      #+quicklisp(load-package pkg)))
 
 (let ((alst '((:mcclim . :clim))))
@@ -315,23 +321,33 @@ README describes the system, not the package.
 ;                     .. / systemname-.... /
 ;                        / cffi_0.19.0 /     und diverse andere
 ; #<QL-DIST:SYSTEM zsort / zsort-20120520-git / quicklisp 2015-06-08>) 
-(defun ql-system-name (ql-system) (#~s'(-|_)[^-_]+?(-git|-darcs|-svn|-http|-hg)?$'' (second (#~d' / ' (princ-to-string ql-system))))) ; ev ql:system-name
+(defun ql-system-name (sys) 
+  (#~s'(-|_)[^-_]+?(-git|-darcs|-svn|-http|-hg)?$'' 
+   (second (#~d' / ' (princ-to-string sys))))) ; ev ql:system-name
 
 ; 13.9.18 alexandria ist nicht dabei
 (defun current-packages () 
-  (cons "common-lisp" (sort (remove-if-not (lambda (x) (ignore-errors (asdf:find-system x))) (mapcar (alexandria:compose 'string-downcase 'package-name) (list-all-packages))) 'string<)))
+  (cons "common-lisp" 
+        (sort (remove-if-not 
+                (lambda (x) (ignore-errors (asdf:find-system x))) 
+                (mapcar (alexandria:compose 'string-downcase 'package-name) 
+                        (list-all-packages)))
+              'string<)))
 
 #+quicklisp
 (defun quicklisp-systems () 
-  (sort (remove-duplicates (mapcar 'ql-system-name (ql:system-list)) :test 'string=) 'string<))
+  (sort (remove-duplicates (mapcar 'ql-system-name (ql:system-list)) :test 'string=) 
+        'string<))
 
+; <--- comment out or adapt to your system -----
 #+quicklisp
 (defun local-systems ()
-  (if (probe-file #P"~/src/lisp/") (push #P"~/src/lisp/" ql:*local-project-directories*)) ; <--- comment out or adapt to your system -----
+  (if (probe-file #P"~/src/lisp/") (push #P"~/src/lisp/" ql:*local-project-directories*))
   (sort (ql:list-local-systems) 'string<))
 
-; 2) create hierarchical menu to choose a package or a system. Hierarchy by symbol-name: com. cl- asdf/ ...
-;----------------------------------------------------------------------------------------------------------
+; 2) create hierarchical menu to choose a package or a system. 
+;    Hierarchy by symbol-name: com. cl- asdf/ ...
+;----------------------------------------------------------------------------------------
 (defun create-menu (l)
   "turn a list into a sorted numbered list"
   (create-menu% (hierarchy-by-symbolname l)))
@@ -341,7 +357,8 @@ README describes the system, not the package.
     (mapcar (lambda (x)
               (if (atom x)
                 (list (lol:mkstr (incf n) #\space x) :value x)
-                (cons (lol:mkstr (incf n) #\space (car x)) (cons :items (list (create-menu% (cdr x)))))))
+                (cons (lol:mkstr (incf n) #\space (car x)) 
+                      (cons :items (list (create-menu% (cdr x)))))))
             l))
 
 (defun create-menu% (l &aux (n 0))
@@ -355,7 +372,8 @@ README describes the system, not the package.
 
 (defun print-numbered-pkg (item strm)
   (if (#~m'[-./]$' (car item))
-    (with-drawing-options (strm :ink +red+ :text-face :bold) (princ (string-downcase (car item)) strm))
+    (with-drawing-options (strm :ink +red+ :text-face :bold) 
+      (princ (string-downcase (car item)) strm))
     (princ (string-downcase (car item)) strm)))
 
 ;&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
@@ -364,7 +382,8 @@ README describes the system, not the package.
   (setf (info *application-frame*) item))
 
 (define-pkg-doc-command (cl-apropos :menu t) () ; common-lisp apropos
-  (setf (info *application-frame*) (apropos (accept 'string) (accept 'string :default nil) 'external-only)))
+  (setf (info *application-frame*) 
+        (apropos (accept 'string) (accept 'string :default nil) 'external-only)))
 
 #+quicklisp
 (define-pkg-doc-command (ql-apropos :menu t) () ; quicklisp apropos
