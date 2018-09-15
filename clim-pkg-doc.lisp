@@ -98,8 +98,7 @@ README describes the system, not the package.
 ;--------------------------------------------------------
 ; 2) SYMBOL-TREE
 ;--------------------------------------------------------
-;scheint gut zu gehen außer cl und clim
-(defun pkg-tree (p) (cons p (insert-what (symbol-groups p))))
+(defun pkg-tree (p) (cons (package-name p) (insert-what (symbol-groups p))))
 
 ; Hierarchy by symbolname
 ;----------------------------------
@@ -288,119 +287,25 @@ README describes the system, not the package.
   (let ((pkg (string-upcase (menu-choose (create-menu system-category) :printer 'print-numbered-pkg :n-columns 5))))  ; 3 bisher
      #+quicklisp(load-package pkg)))
 
-#|
-;scheint zu gehen, außer ql mcclim: The name "MCCLIM" does not designate any package.
+(let ((alst '((:mcclim . :clim))))
+  (defun pkg2sys (x)
+    (let ((p (alexandria:make-keyword x)))
+      (or (car (rassoc p alst)) p)))
+  (defun sys2pkg (x)
+    (let ((p (alexandria:make-keyword x)))
+      (or (cdr (assoc p alst)) p))))
+
 (defun load-package (p) 
-  (and (or (find-package p) (ql:quickload p))
-       (create-tview p)))
-|#
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;so müßte es richtig gehen
-;(and (or (find-package pkg) (ql:quickload sys)) (create-tview pkg))
-
-
-#|
-(defun pkg<->sys (x)
-  (let* ((x (alexandria:make-keyword p))
-         (pkg (case x
-                (:mcclim :clim)
-                (t x)))
-         (sys (case x
-                (:clim :mcclim)
-                (t x)))
-|#
-
-
-;(:mcclim :clim)  geht nicht 
-;so gehts; The name "MCCLIM" does not designate any package.
-(defun load-package (pkg) 
-  (let ((p (cond ((string= pkg "MCCLIM") "CLIM")
-                 (t pkg))))
-        (and (or (find-package p) (ql:quickload p))
-             (create-tview p))))
-
-
-;create tree-view form Packages (= pkg = "CLIM") or Quicklisp (= sys "MCCLIM")
-; "CLIM" bzw "MCCLIM" are return values form Menu-choose 
-(defun load-package (p) 
-  (let* ((x (alexandria:make-keyword p))
-         (pkg (case x
-                (:mcclim :clim)
-                (t x)))
-         (sys (case x
-                (:clim :mcclim)
-                (t x))))
+  (let ((pkg (sys2pkg p))
+        (sys (pkg2sys p)))
     (and (or (find-package pkg) (ql:quickload sys)) 
-         ;(create-tview pkg))))   ; braucht dzt package-name
-        ;(create-tview (#~s'^:'' (string-upcase (h:stg pkg))))))) ;geth
-        ;(list pkg sys))))
-        (create-tview (package-name pkg)))))
+         (create-tview  pkg))))
 
-
-#|
-(defun load-package (p) 
-  (let* ((pkg (lol:sym p))
-         (sys (case pkg
-                (:mcclim :clim)
-                (t pkg))))
-        (and (or (find-package pkg) (ql:quickload sys))
-             (create-tview pkg))))
-
-(defun load-package (p) 
-  (let* ((pkg (alexandria:make-keyword p))
-         (sys (case pkg
-                (:mcclim :clim)
-                (t pkg))))
-        (and (or (find-package pkg) (ql:quickload sys))
-             (create-tview pkg))))
-
-;besser, factor out case <--
-(defun load-package (p) 
-  (let* ((sys (lol:symb p))
-         (pkg (case sys
-                (:mcclim :clim)
-                (t sys))))
-        (and (or (find-package pkg) (ql:quickload sys))
-             (create-tview pkg))))
-
-(defun load-package (p) 
-  (let* ((pkg (alexandria:make-keyword p))
-         (sys (case pkg
-                ;(:clim :mcclim)
-                (:mcclim :clim)
-                (t pkg))))
-        (and (or (find-package pkg) (ql:quickload sys))
-             (create-tview pkg))))
-
-(defun load-package (p) 
-  (and (or (find-package pkg) 
-           (let ((sys (alexandria:make-keyword p)))
-             (case sys
-               (:mcclim :clim)
-               (t sys))
-
-             (ql:quickload sys)))
-       (create-tview pkg)))
-|#
-
-;needs "CLIM" i.e. upper-case package name
 (defun create-tview (pkg)
   (cw-utils::t2h-r (pkg-tree pkg))
   (with-application-frame (f) 
-    (setf (cw:group f) (make-instance 'node-pkg :sup pkg :disp-inf t)) 
+    (setf (cw:group f) (make-instance 'node-pkg :sup (package-name pkg) :disp-inf t)) 
     (redisplay-frame-panes f :force-p t)))
-
-#|;#########
-; to work with packages/systems use keywords and package-name
-;, ev change to accept :clim
-(defun create-tview (pkg)
-  (cw-utils::t2h-r (pkg-tree pkg))    ; ev change pkg-tree to accept :clim
-  (with-application-frame (f) 
-    ;(setf (cw:group f) (make-instance 'node-pkg :sup (package-name pkg) :disp-inf t)) 
-    (setf (cw:group f) (make-instance 'node-pkg :sup pkg :disp-inf t)) 
-    (redisplay-frame-panes f :force-p t)))
-|#
 
 ;==============================================================
 ; create hierarchical menu to choose a package or a system
