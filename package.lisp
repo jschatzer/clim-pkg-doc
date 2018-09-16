@@ -4,3 +4,6 @@
   (:use clim clim-lisp)
   (:export pkg-doc
            pd))
+
+(defpackage test 
+  (:use cl prove clim-pkg-doc))

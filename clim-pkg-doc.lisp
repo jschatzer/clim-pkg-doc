@@ -77,6 +77,7 @@ README describes the system, not the package.
   (let ((x (asdf/system:find-system sys)))
     (list (asdf/system:system-description x) (asdf/system:system-long-description x))))
 
+#|
 (defmacro readme-file (sys)
   "Look for a system's documentation file"
   `(or ,@(loop for x in '("README" "README.txt" "README.md" "README.markdown" "README.org" 
@@ -94,6 +95,54 @@ README describes the system, not the package.
             (#~m'html' (strip-html (alexandria:read-file-into-string (readme-file pkg))))
             (#~m'.*' (alexandria:read-file-into-string (readme-file pkg))))) ;match t ?? <---
         "No System Info?")))
+|#
+
+
+;(defmacro doc-file (sys)
+(defmacro readme-file (sys)
+  "Look for a system's documentation file"
+  `(or ,@(loop for x in '("README" "README.txt" "README.md" "README.markdown" "README.org" 
+                          "doc/README" "doc/index.html" "docs/index.html")
+               collect `(probe-file (asdf:system-relative-pathname ,sys ,x)))))
+
+#|
+;(defun doc (p)
+(defun readme (p)
+  "Get text from the system's docfile.
+  If doc is html strip the tags"
+  (let* ((sys (pkg2sys p))
+         (txt (alexandria:read-file-into-string (readme-file sys))))
+    (or (ignore-errors
+          (pre:match (file-namestring (readme-file sys))
+            (#~m'html' (strip-html txt))
+            (t txt)))
+        "No System Info?")))
+
+;(defun doc (p)
+(defun readme (p)
+  "Get text from the system's docfile.
+  If doc is html strip the tags"
+  (let* ((sys (pkg2sys p))
+         (txt (alexandria:read-file-into-string (readme-file sys))))  ;   ;ignore errors ??
+         ;(txt (ignore-errors (alexandria:read-file-into-string (readme-file sys))))) ; geht nicht
+    (or (pre:match (file-namestring (readme-file sys))
+          (#~m'html' (strip-html txt))
+          (t txt)))
+    "No System Info?"))
+|#
+
+
+;(defun doc (p), readme belassen <----
+(defun readme (p)
+  "Get text from the system's docfile.
+  If doc is html strip the tags"
+  (let* ((sys (pkg2sys p))
+         (txt (alexandria:read-file-into-string (readme-file sys))))
+    (or (pre:match (file-namestring (readme-file sys))
+          (#~m'html' (strip-html txt))
+          (t txt)))
+    "No System Info?"))
+
 
 (defun strip-html (s) (#~s'<.*?>''gs s))
 
@@ -207,6 +256,33 @@ README describes the system, not the package.
         when category collect (cons (#~s'$':' (string-downcase (princ-to-string what))) 
                                     (hierarchical-category category))))
 
+#|
+;orig
+(defun sym-gr (p)
+  (case p 
+    (:clim (substitute (mapcar 'cw::sym2stg (clim-constants)) '("constant:" NIL) (mapcar 'pack (mapcar 'cw::sym2stg (symbol-groups p))) :test 'equal))
+    (:common-lisp (cons (pack (mapcar 'cw::sym2stg (spec-op))) (mapcar 'pack (mapcar 'cw::sym2stg (symbol-groups p)))))
+    (t (mapcar 'pack (mapcar 'cw::sym2stg (symbol-groups p))))))
+
+
+(defun sym-gr (p)
+  (case p 
+    (:clim (substitute (mapcar 'cw::sym2stg (clim-constants)) '("constant:" NIL) (mapcar (alexandria:compose 'remove-empty-bags 'pack) (mapcar 'cw::sym2stg (symbol-groups p))) :test 'equal))
+    (:common-lisp (cons (remove-empty-bags (pack (mapcar 'cw::sym2stg (spec-op)))) (mapcar (alexandria:compose 'remove-empty-bags 'pack) (mapcar 'cw::sym2stg (symbol-groups p)))))
+    (t (mapcar (alexandria:compose 'remove-empty-bags 'pack) (mapcar 'cw::sym2stg (symbol-groups p))))))
+
+;-----------------------------------------------------------------
+;---------------------------
+;(defun pkg-tree (p) (remove-empty-bags (cons (symbol-name p) (insert-what (sym-gr p)))))
+;das geht viel besser
+
+;(defun pkg-tree (p) (cons (symbol-name p) (insert-what (remove-empty-bags (sym-gr p)))))
+;(defun pkg-tree (p) (cons (symbol-name p) (insert-what (sym-gr p))))
+
+;(defun pkg-tree (p) (cons p (insert-what (sym-gr p))))
+
+|#
+
 (defun insert-what (l)
    (mapcar 'insert-what%% l))
 
@@ -242,6 +318,8 @@ README describes the system, not the package.
 
 (add-menu-item-to-command-table 'pkg-doc "textsize" :command 'txt-size) ;not working <---
 
+
+;style warnung: The variable F is defined but never used.   frame?
 (defun disp-info (f p) 
   (let* ((pkg (alexandria:make-keyword (cw:item-name (cw:group *application-frame*))))
          (inf-ap-fr (info *application-frame*))
@@ -288,6 +366,7 @@ README describes the system, not the package.
 (define-pkg-doc-command (local-projects :menu "LocalLibs") ()
   (select-pkg (local-systems)))
 
+; style warning; The variable PKG is defined but never used
 (defun select-pkg (system-category)
   (let ((pkg (string-upcase (menu-choose (create-menu system-category) 
                                          :printer 'print-numbered-pkg :n-columns 5))))
@@ -301,10 +380,11 @@ README describes the system, not the package.
     (let ((p (alexandria:make-keyword x)))
       (or (cdr (assoc p alst)) p))))
 
+; style warning: The variable SYS is defined but never used
 (defun load-package (p) 
   (let ((pkg (sys2pkg p))
         (sys (pkg2sys p)))
-    (and (or (find-package pkg) (ql:quickload sys)) 
+    (and (or (find-package pkg) #+quicklisp(ql:quickload sys)) 
          (create-tview  pkg))))
 
 (defun create-tview (pkg)
