@@ -151,6 +151,16 @@ README describes the system, not the package.
 ;--------------------------------------------------------
 (defun pkg-tree (p) (cons (package-name p) (insert-what (symbol-groups p))))
 
+;---------------------------
+;(defun pkg-tree (p) (remove-empty-bags (cons (symbol-name p) (insert-what (sym-gr p)))))
+;das geht viel besser
+
+;(defun pkg-tree (p) (cons (symbol-name p) (insert-what (remove-empty-bags (sym-gr p)))))
+;(defun pkg-tree (p) (cons (symbol-name p) (insert-what (sym-gr p))))
+
+;(defun pkg-tree (p) (cons p (insert-what (sym-gr p))))
+;---------------------------------------
+
 ; Hierarchy by symbolname
 ;----------------------------------
 ; (parts 'a-b-c) -> ("a-" "b-" "c")
@@ -255,6 +265,68 @@ README describes the system, not the package.
         for category = (sorted-symbols-in-a-category pkg what)
         when category collect (cons (#~s'$':' (string-downcase (princ-to-string what))) 
                                     (hierarchical-category category))))
+;------------------------------------------
+;------------------------------------------
+(in-package manifest)
+
+(manifest::define-category :SPECIAL-OPERATOR (symbol what)
+  (:is (special-operator-p symbol)))
+
+(manifest::define-category :CLIM-COLOR (symbol what)
+  (:is (clim-color-p symbol)))
+
+#|
+; manifest definitions ev edit ??
+(define-category :variable (symbol what)
+  (:is (and (variable-p symbol) (not (is symbol :constant))))
+  (:docs   (documentation symbol 'variable)))
+
+(define-category :constant (symbol what)
+  (:is (and (variable-p symbol) (constantp symbol)))
+  (:docs (documentation symbol 'variable)))
+
+(defun variable-p (name)
+    (ignore-errors (boundp name)))
+|#
+
+
+(defun clim-color-p (x)
+  (#~m'^\+.+\+$' (symbol-name x)))
+
+;------------------------------------------
+(in-package clim-pkg-doc)
+;------------------------------------------
+
+;there are 727 clim color names!!
+(defun symbol-groups (pkg)
+  "group symbols into manifest::*categories*"
+  (loop for what in (case pkg 
+                      (:common-lisp  (cons :SPECIAL-OPERATOR manifest::*categories*))
+                      (:clim (append manifest::*categories* '(:CLIM-COLOR)))
+                      (t manifest::*categories*))
+        for category = (sorted-symbols-in-a-category pkg what)
+        when category collect (cons (#~s'$':' (string-downcase (princ-to-string what))) 
+                                    (hierarchical-category category))))
+
+
+
+ ;clim '(:SPECIAL-OPERATOR :FUNCTION :MACRO :GENERIC-FUNCTION :SLOT-ACCESSOR :VARIABLE :CLASS :CONDITION :CONSTANT))
+; '(:FUNCTION :MACRO :GENERIC-FUNCTION :SLOT-ACCESSOR :VARIABLE :CLASS :CONDITION :CONSTANT :CLIM-COLOR))
+
+
+
+#|
+;(defvar
+(defparameter
+  *categories*
+  '(:FUNCTION :SPECIAL-OPERATOR :MACRO :GENERIC-FUNCTION :SLOT-ACCESSOR :VARIABLE :CLASS :CONDITION :CONSTANT :CLIM-COLOR))
+
+(defun clim-color-p (x)
+  (member x clim-internals::*xpm-x11-colors* :test 
+          'equalp 
+          :key (lambda (x) (h:sym (string-upcase (fourth x))))))
+|#
+
 
 #|
 ;orig
@@ -271,17 +343,8 @@ README describes the system, not the package.
     (:common-lisp (cons (remove-empty-bags (pack (mapcar 'cw::sym2stg (spec-op)))) (mapcar (alexandria:compose 'remove-empty-bags 'pack) (mapcar 'cw::sym2stg (symbol-groups p)))))
     (t (mapcar (alexandria:compose 'remove-empty-bags 'pack) (mapcar 'cw::sym2stg (symbol-groups p))))))
 
-;-----------------------------------------------------------------
-;---------------------------
-;(defun pkg-tree (p) (remove-empty-bags (cons (symbol-name p) (insert-what (sym-gr p)))))
-;das geht viel besser
-
-;(defun pkg-tree (p) (cons (symbol-name p) (insert-what (remove-empty-bags (sym-gr p)))))
-;(defun pkg-tree (p) (cons (symbol-name p) (insert-what (sym-gr p))))
-
-;(defun pkg-tree (p) (cons p (insert-what (sym-gr p))))
-
 |#
+;-----------------------------------------------------------------
 
 (defun insert-what (l)
    (mapcar 'insert-what%% l))
