@@ -22,7 +22,17 @@
 ;;;;;;;
 ;(:file "pkg-tree")
 ;(:file "n-clim-pkg-doc")
+
+
                (:file "clim-pkg-doc")
-               (:file "test")
+               ;--------------------
+               ;; scroll problem, alexandrio
+               ;(:file "clim-pkg-doc.10.9.2018")    ;; alexandria geht, scroll auch nicht ???   <------
+               ;-------------------
+
+;                 "clim-pkg-doc.9.10.16_2_geht"   ;geht nicht mehr
+;                "clim-pkg-doc12.5.17"  ;geht nicht mehr
+
+;               (:file "test")
                ))
 
