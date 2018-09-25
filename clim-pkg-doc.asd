@@ -25,6 +25,8 @@
 
 
                (:file "clim-pkg-doc")
+               ;(:file "clim-pkg-doc.25.9.18.string")  ; test string only, geht
+
                ;--------------------
                ;; scroll problem, alexandrio
                ;(:file "clim-pkg-doc.10.9.2018")    ;; alexandria geht, scroll auch nicht ???   <------

@@ -1,4 +1,5 @@
 ;;;; clim-pkg-doc.lisp
+;STRING ONLY
 
 #|--------------------------------------------------------------------
 some ideas, concepts and code from Peter Seibel's manifest package
@@ -59,6 +60,8 @@ PACKAGE pkg     SYSTEM sys
 ;--------------------------------------------------------
 ; 1) SYSTEM DESCRIPTION
 ;--------------------------------------------------------
+
+;(defun sys-description (s pkg)   ????
 (defun pkg-description (s pkg)
   (let ((nr (length (pkg-symbols pkg)))
         (a1 (car (asdf-description pkg)))
@@ -78,10 +81,19 @@ PACKAGE pkg     SYSTEM sys
 -------------------------"))
   (format s "~&~a" a3)))
 
+#|
 ;mit match (a b ...)
 (defun asdf-description (sys)
   (let ((x (asdf/system:find-system sys)))
     (list (asdf/system:system-description x) (asdf/system:system-long-description x))))
+|#
+
+;mit match (a b ...)
+(defun asdf-description (sys)
+  (let ((x (asdf/system:find-system (pkg2sys sys))))
+    (list (asdf/system:system-description x) (asdf/system:system-long-description x))))
+
+
 
 #| 
 ;examples of other doc files:   - 1) show with pdf-viewer, 2) display pdf in clim, 3) pdf2txt ??
@@ -105,6 +117,7 @@ iterate-20180228-git/doc/tex/iterate-manual.pdf
             (t (alexandria:read-file-into-string (readme-file sys)))))
         "No System Info?")))
 
+#|
 ;;; ev work with strings only: sys "abc", pkg "ABC" -- or SYMBOLS only for sys and pkg ? instead of keywords
 ;(("mcclim" . "CLIM")
 ; ("alexandria" . "ALEXANDRIA.0.DEV")
@@ -118,6 +131,18 @@ iterate-20180228-git/doc/tex/iterate-manual.pdf
   (defun sys2pkg (x)
     (let ((p (alexandria:make-keyword (string-upcase x))))
       (or (cdr (assoc p sys-pkg)) p))))
+|#
+
+(let ((sys-pkg '(("mcclim" . "CLIM")
+                 ("alexandria" . "ALEXANDRIA.0.DEV")
+                 ("cl-jpeg" . "JPEG"))))
+  (defun pkg2sys (p)
+      (or (car (rassoc p sys-pkg :test 'equal)) (string-downcase p)))
+  (defun sys2pkg (p)
+      (or (cdr (assoc p sys-pkg :test 'equal)) (string-upcase p))))
+
+
+
 
 (defun strip-html (s) (#~s'<.*?>''gs s))
 
@@ -298,7 +323,9 @@ iterate-20180228-git/doc/tex/iterate-manual.pdf
         (when (manifest::is sym what) 
           (cond 
             ((#~m'^Help' inf-ap-fr) (with-drawing-options (p :ink +blue+) (format p (info *application-frame*))))
-            ((string= inf-ap-fr pkg) (pkg-description p (pkg2sys pkg)))
+;            ((string= inf-ap-fr pkg) (pkg-description p (pkg2sys pkg)))
+            ((string= inf-ap-fr pkg) (pkg-description p pkg))    ; sys-descrition  ??
+
             ((member what '(:function :macro :generic-function :slot-accessor)) 
              (with-drawing-options (p :text-face :bold) (format p "~@:(~a~):~a~2%Argument List:~%" pkg sym))
              (color-lambda p (repl-utilities:arglist sym))
@@ -457,7 +484,13 @@ CONFIGURE-POSSIBILITIES:
 ;--------------------------------------------------------
 ; 5) MAIN
 ;--------------------------------------------------------
+#|
 (defun pkg-doc (&optional (pkg :clim)) 
  (tview  (pkg-tree pkg) (package-name pkg)))
+|#
+
+(defun pkg-doc (&optional (pkg "CLIM")) 
+ (tview  (pkg-tree pkg) pkg))
+
 
 (defun pd () (clim-sys:make-process #'pkg-doc))
