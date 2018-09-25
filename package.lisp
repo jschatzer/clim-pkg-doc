@@ -5,5 +5,7 @@
   (:export pkg-doc
            pd))
 
+#|
 (defpackage test 
   (:use cl prove clim-pkg-doc))
+|#

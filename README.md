@@ -9,6 +9,13 @@ Usage:
 
 (clim-pkg-doc:pkg-doc :cl-fad)
 
+
+; new thread:
+
+(clim-pkg-doc:pd)
+
+(clim-pkg-doc:pd :cl-fad)
+
 ```
 
 ![ScreenShot](clim1.png)

@@ -1,5 +1,4 @@
 ;;;; clim-pkg-doc.lisp
-;STRING ONLY
 
 #|--------------------------------------------------------------------
 some ideas, concepts and code from Peter Seibel's manifest package
@@ -32,37 +31,25 @@ POSSIBILITY OF SUCH DAMAGE.
 --------------------------------------------------------------------|# 
 
 (in-package #:clim-pkg-doc)
-; http://bauhh.dyndns.org:8000/clim-spec/index.html
-; in vim   :set cc=94
 
-;geht doch nicht???
-;(delete-package :quicklisp)
+;--------------------------------------------------------
+; TODO: 
+;--------------------------------------------------------
+; with- problem
+; nil problem hierachical-category, cw:sym2stg
+; http://bauhh.dyndns.org:8000/clim-spec/index.html  - ev link ??
 
-;todo: 
-;1) cl+ssl.asd hat 2x defpackage vor defsystem -- loop
-;2) alexandria.0.dev    pathname systemfile
-
-#|-------------------------------------------------------
-NOTES
----------------------------------------------------------
-PACKAGE pkg     SYSTEM sys
-:clim           :mcclim  e.g. (ql:quickload :mcclim)
--------------------------------------------------------|#
-
-;---------------------------------------------------------
+;--------------------------------------------------------
 ; 0) CONFIGURE
 ;--------------------------------------------------------
 ;1) adapt local-libs - optionally add a directory to quicklisp/local-projects??, ev append a list of dirs, ev config.lisp
-(defvar my-project-dir #P"~/src/lisp/") ; my-libs ??
-
-;2) (setf clim-pkg-doc::*st* :a)  ;to change the symbol-type  :e external(default) :p resent :a available ???, ev all pkg symbols alfabet?
+(defvar my-project-dir #P"~/src/lisp/") ; my-libs ??, export function?
 
 ;--------------------------------------------------------
 ; 1) SYSTEM DESCRIPTION
 ;--------------------------------------------------------
-
-;(defun sys-description (s pkg)   ????
 (defun pkg-description (s pkg)
+  "system description"
   (let ((nr (length (pkg-symbols pkg)))
         (a1 (car (asdf-description pkg)))
         (a2 (cadr (asdf-description pkg)))
@@ -81,32 +68,29 @@ PACKAGE pkg     SYSTEM sys
 -------------------------"))
   (format s "~&~a" a3)))
 
-#|
-;mit match (a b ...)
-(defun asdf-description (sys)
-  (let ((x (asdf/system:find-system sys)))
-    (list (asdf/system:system-description x) (asdf/system:system-long-description x))))
-|#
-
 ;mit match (a b ...)
 (defun asdf-description (sys)
   (let ((x (asdf/system:find-system (pkg2sys sys))))
     (list (asdf/system:system-description x) (asdf/system:system-long-description x))))
 
-
-
 #| 
-;examples of other doc files:   - 1) show with pdf-viewer, 2) display pdf in clim, 3) pdf2txt ??
+;EXAMPLES OF OTHER DOC FILES:   - 1) show with pdf-viewer, 2) display pdf in clim, 3) pdf2txt ??
 sequence-iterators-20130813-darcs/doc/sequence-iterators.html
 iterate-20180228-git/doc/tex/iterate-manual.pdf
 |#
-; with defun loop while?
 (defmacro readme-file (sys)
   "Look for a system's documentation file"
   `(or ,@(loop for x in '("README" "README.txt" "README.md" "README.markdown" "README.org" 
                           "doc/README" "doc/index.html" "docs/index.html")
-               ;collect `(probe-file (asdf:system-relative-pathname (pkg2sys ,sys)) ,x))))
                collect `(probe-file (asdf:system-relative-pathname (pkg2sys ,sys) ,x)))))
+
+#|
+;to test
+(defun readme-file (sys)
+  (loop for x in '("README" "README.txt" "README.md" "README.markdown" "README.org" 
+                   "doc/README" "doc/index.html" "docs/index.html")
+        while x do (ignore-errors (probe-file (asdf:system-relative-pathname (pkg2sys sys) x)))))
+|#
 
 (defun readme-text (p)
   "Get text from the system's docfile. If doc is html strip the tags"
@@ -117,32 +101,11 @@ iterate-20180228-git/doc/tex/iterate-manual.pdf
             (t (alexandria:read-file-into-string (readme-file sys)))))
         "No System Info?")))
 
-#|
-;;; ev work with strings only: sys "abc", pkg "ABC" -- or SYMBOLS only for sys and pkg ? instead of keywords
-;(("mcclim" . "CLIM")
-; ("alexandria" . "ALEXANDRIA.0.DEV")
-; ("cl-jpeg" . "JPEG"))
-(let ((sys-pkg '((:mcclim . :clim)
-                 (:alexandria . :alexandria.0.dev)
-                 (:cl-jpeg . :jpeg))))
-  (defun pkg2sys (x)
-    (let ((p (alexandria:make-keyword x)))
-      (or (car (rassoc p sys-pkg)) p)))
-  (defun sys2pkg (x)
-    (let ((p (alexandria:make-keyword (string-upcase x))))
-      (or (cdr (assoc p sys-pkg)) p))))
-|#
-
 (let ((sys-pkg '(("mcclim" . "CLIM")
                  ("alexandria" . "ALEXANDRIA.0.DEV")
                  ("cl-jpeg" . "JPEG"))))
-  (defun pkg2sys (p)
-      (or (car (rassoc p sys-pkg :test 'equal)) (string-downcase p)))
-  (defun sys2pkg (p)
-      (or (cdr (assoc p sys-pkg :test 'equal)) (string-upcase p))))
-
-
-
+  (defun pkg2sys (p) (or (car (rassoc p sys-pkg :test 'equal)) (string-downcase p)))
+  (defun sys2pkg (p) (or (cdr (assoc p sys-pkg :test 'equal)) (string-upcase p))))
 
 (defun strip-html (s) (#~s'<.*?>''gs s))
 
@@ -242,6 +205,8 @@ iterate-20180228-git/doc/tex/iterate-manual.pdf
   (:is (clim-color-p symbol)))
 
 #|
+;; clim colors +cyan+ are in clim variables, remove them <----
+
 ; manifest definitions ev edit ??
 (define-category :variable (symbol what)
   (:is (and (variable-p symbol) (not (is symbol :constant))))
@@ -323,9 +288,7 @@ iterate-20180228-git/doc/tex/iterate-manual.pdf
         (when (manifest::is sym what) 
           (cond 
             ((#~m'^Help' inf-ap-fr) (with-drawing-options (p :ink +blue+) (format p (info *application-frame*))))
-;            ((string= inf-ap-fr pkg) (pkg-description p (pkg2sys pkg)))
-            ((string= inf-ap-fr pkg) (pkg-description p pkg))    ; sys-descrition  ??
-
+            ((string= inf-ap-fr pkg) (pkg-description p pkg))
             ((member what '(:function :macro :generic-function :slot-accessor)) 
              (with-drawing-options (p :text-face :bold) (format p "~@:(~a~):~a~2%Argument List:~%" pkg sym))
              (color-lambda p (repl-utilities:arglist sym))
@@ -341,6 +304,17 @@ iterate-20180228-git/doc/tex/iterate-manual.pdf
             (with-drawing-options (s :ink +red+ :text-face :bold) (format s "~(~a~)" x))
             (format s "~(~a~)" x)))
         (ppcre:split "(&[^ )]+)" (princ-to-string l) :with-registers-p t)))
+
+#|
+(defun color-lambda (s l)
+  "color lambda list"
+  (mapc (lambda (x)
+          (if (#~m'^&' x)
+            (with-drawing-options (s :ink +red+ :text-face :bold) (format s "~(~a~)" x))
+            (format s "~(~a~)" x)))
+        ;(ppcre:split "(&[^ )]+)" (princ-to-string l) :with-registers-p t)))
+        (#~d'(&[^ )]+)'r (princ-to-string l)))   ; macht end of line error  <-----
+|#
 
 (defun tview (tree key)
   (cw-utils::t2h-r tree)
@@ -382,7 +356,7 @@ iterate-20180228-git/doc/tex/iterate-manual.pdf
 ;==============================================================
 ; create hierarchical menu to choose a package or a system
 ;==============================================================
-; 1) sorted lists of lower-case strings 
+; 1) sorted lists of strings 
 ;---------------------------------------
 ;                     .. / systemname-.... /
 ;                        / cffi_0.19.0 /     und diverse andere
@@ -447,14 +421,6 @@ iterate-20180228-git/doc/tex/iterate-manual.pdf
 (define-pkg-doc-command (ql-apropos :menu t) () ; quicklisp apropos
   (setf (info *application-frame*) (ql:system-apropos (accept 'string))))
 
-#|
-(define-pkg-doc-command (help :menu t) ()
-  (setf (info *application-frame*) (princ *help* *standard-input*)))
-
-(define-pkg-doc-command (help :menu t) ()
-  (setf (info *application-frame*) *help*))
-|#
-
 (define-pkg-doc-command (help :menu t) ()
   (with-drawing-options (t :ink +blue+) (princ *help* *standard-output*)))
 
@@ -477,20 +443,15 @@ APROPOS:
 -----------------------------------------------------------------
 CONFIGURE-POSSIBILITIES:
 1) adapt local-libs
-;2) (setf clim-pkg-doc::*st* :a)  ;to change the symbol-type  :e external(default) :p resent :a available
+;;2) (setf clim-pkg-doc::*st* :a)  ;to change the symbol-type  :e external(default) :p resent :a available ???
+;;3) all symbols alfabetically ??
 -----------------------------------------------------------------
 ")
 
 ;--------------------------------------------------------
 ; 5) MAIN
 ;--------------------------------------------------------
-#|
-(defun pkg-doc (&optional (pkg :clim)) 
- (tview  (pkg-tree pkg) (package-name pkg)))
-|#
-
 (defun pkg-doc (&optional (pkg "CLIM")) 
  (tview  (pkg-tree pkg) pkg))
-
 
 (defun pd () (clim-sys:make-process #'pkg-doc))
