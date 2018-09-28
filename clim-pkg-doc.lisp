@@ -101,8 +101,11 @@ iterate-20180228-git/doc/tex/iterate-manual.pdf
             (t (alexandria:read-file-into-string (readme-file sys)))))
         "No System Info?")))
 
+
+;The name "CL-COLORS2" does not designate any package
 (let ((sys-pkg '(("mcclim" . "CLIM")
                  ("alexandria" . "ALEXANDRIA.0.DEV")
+                 ;("oneliner" . "CL-ONELINER") ;??
                  ("cl-jpeg" . "JPEG"))))
   (defun pkg2sys (p) (or (car (rassoc p sys-pkg :test 'equal)) (string-downcase p)))
   (defun sys2pkg (p) (or (cdr (assoc p sys-pkg :test 'equal)) (string-upcase p))))
@@ -218,7 +221,20 @@ iterate-20180228-git/doc/tex/iterate-manual.pdf
 
 (defun variable-p (name)
     (ignore-errors (boundp name)))
+
+(defun function-p (name)
+    (ignore-errors (fdefinition name)))
 |#
+
+(defun function-p (x)
+  (and 
+    (not (special-operator-p x))
+    (ignore-errors (fdefinition x))))
+
+(defun variable-p (name)
+  (and (ignore-errors (boundp name))
+       (not (#~m'^\+.+\+$' (symbol-name name)))))
+
 (define-category :constant (symbol what)
   (:is (constantp symbol))
   (:docs (documentation symbol 'variable)))
@@ -232,9 +248,9 @@ iterate-20180228-git/doc/tex/iterate-manual.pdf
 
 (defun symbol-groups (pkg)
   "group symbols into manifest::*categories*"
-  (loop for what in (case pkg 
-                      (:common-lisp  (cons :SPECIAL-OPERATOR manifest::*categories*))
-                      (:clim (append manifest::*categories* '(:CLIM-COLOR)))
+  (loop for what in (pre:match pkg 
+                      (#~m'COMMON-LISP'  (cons :SPECIAL-OPERATOR manifest::*categories*))
+                      (#~m'CLIM' (append manifest::*categories* '(:CLIM-COLOR)))
                       (t manifest::*categories*))
         for category = (sorted-symbols-in-a-category pkg what)
         when category collect (cons (#~s'$':' (string-downcase (princ-to-string what))) 
@@ -297,14 +313,6 @@ iterate-20180228-git/doc/tex/iterate-manual.pdf
              (unless (null sym) (doc-stg what)))
             (t "there could be other documantation??")))))))
 
-(defun color-lambda (s l)
-  "color lambda list"
-  (mapc (lambda (x)
-          (if (#~m'^&' x)
-            (with-drawing-options (s :ink +red+ :text-face :bold) (format s "~(~a~)" x))
-            (format s "~(~a~)" x)))
-        (ppcre:split "(&[^ )]+)" (princ-to-string l) :with-registers-p t)))
-
 #|
 (defun color-lambda (s l)
   "color lambda list"
@@ -312,9 +320,18 @@ iterate-20180228-git/doc/tex/iterate-manual.pdf
           (if (#~m'^&' x)
             (with-drawing-options (s :ink +red+ :text-face :bold) (format s "~(~a~)" x))
             (format s "~(~a~)" x)))
-        ;(ppcre:split "(&[^ )]+)" (princ-to-string l) :with-registers-p t)))
-        (#~d'(&[^ )]+)'r (princ-to-string l)))   ; macht end of line error  <-----
+        (ppcre:split "(&[^ )]+)" (princ-to-string l) :with-registers-p t)))
 |#
+
+;geht
+(defun color-lambda (s l)
+  "color lambda list"
+  (mapc (lambda (x)
+          (if (#~m'^&' x)
+            (with-drawing-options (s :ink +red+ :text-face :bold) (format s "~(~a~)" x))
+            (format s "~(~a~)" x)))
+        ;(ppcre:split "(&[^ )]+)" (princ-to-string l) :with-registers-p t)))
+        (#~d'(&[^ )]+)'r (princ-to-string l))))   ;geht!, color regex?, vim match parenthesis?
 
 (defun tview (tree key)
   (cw-utils::t2h-r tree)
@@ -373,6 +390,11 @@ iterate-20180228-git/doc/tex/iterate-manual.pdf
             (lambda (x) (ignore-errors (asdf:find-system (pkg2sys x)))) 
             (mapcar 'package-name (list-all-packages)))
           'string<)))
+
+;                     -- not allways sys name !!
+;#<SYSTEM cl-oneliner / oneliner-20131003-git / quicklisp 201
+;(subst "cl-oneliner" "onliner"   .. müßte gehen
+; pkg u sys = cl-oneliner
 
 ; ("abc" ...)
 #+quicklisp
